@@ -3,7 +3,6 @@ import 'dart:io';
 import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:network_info_plus/network_info_plus.dart';
-import 'package:wifi_iot/wifi_iot.dart';
 import 'package:wifi_scan/wifi_scan.dart';
 
 /// المحرك المركزي لكل القياسات — يعمل مع أي مزود اتصالات
@@ -22,10 +21,18 @@ class NetEngine {
   }
 
   /// قوة الإشارة dBm — أندرويد فقط. iOS يرجع null (قيود Apple).
+  /// نستخرجها من نتائج المسح (wifi_scan) بمطابقة اسم الشبكة الحالية.
   static Future<int?> rssi() async {
     if (!Platform.isAndroid) return null;
     try {
-      return await WiFiForIoTPlugin.getCurrentSignalStrength();
+      final can = await WiFiScan.instance.canGetScannedResults();
+      if (can != CanGetScannedResults.yes) return null;
+      final mySsid = await ssid();
+      final results = await WiFiScan.instance.getScannedResults();
+      for (final ap in results) {
+        if (ap.ssid.isNotEmpty && ap.ssid == mySsid) return ap.level; // dBm
+      }
+      return null;
     } catch (_) {
       return null;
     }
