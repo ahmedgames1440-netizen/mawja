@@ -185,3 +185,29 @@ dialog input{
 @keyframes sp{to{transform:rotate(360deg)}}
 
 .footer-note{color:var(--ink-dim);font-size:12px;line-height:1.7;margin-top:16px;text-align:center}
+
+/* ---- Bufferbloat ---- */
+.bloat-row{display:flex;align-items:center;gap:12px;margin-top:12px}
+.bloat-cell{text-align:center}
+.bloat-cell .bl-v{font-weight:800;font-size:24px;font-variant-numeric:tabular-nums}
+.bloat-cell .bl-l{color:var(--ink-dim);font-size:11px}
+.bloat-arrow{color:var(--ink-dim);font-size:20px}
+.bloat-grade{margin-inline-start:auto;width:52px;height:52px;border-radius:16px;display:grid;place-items:center;font-size:26px;font-weight:800;background:rgba(255,255,255,.05)}
+.bl-verdict{margin-top:10px;font-weight:700;font-size:13px}
+
+/* ---- Plan vs actual ---- */
+.plan-input{display:flex;align-items:center;gap:10px;margin-top:10px}
+.plan-input input{width:110px;padding:12px;border-radius:14px;border:1px solid var(--card-border);background:var(--bg);color:var(--ink);font-size:16px;font-family:inherit}
+.plan-input .unit{color:var(--ink-dim);font-size:13px;flex:1}
+.plan-meta{margin-top:8px;color:var(--ink-dim);font-size:13px}
+
+/* ---- Connection intel ---- */
+.intel-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--card-border)}
+.intel-row:first-child{border-top:none}
+.intel-row .il{color:var(--ink-dim);font-size:13px}
+.intel-row .iv{margin-inline-start:auto;font-weight:700;font-size:14px;text-align:end;word-break:break-all}
+
+/* ---- Router links ---- */
+.router-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.rlink{text-decoration:none;color:var(--wave);font-weight:700;font-size:13px;padding:9px 14px;border-radius:12px;background:rgba(55,182,255,.10);border:1px solid rgba(55,182,255,.25)}
+.rlink:active{transform:scale(.96)}

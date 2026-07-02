@@ -14,6 +14,7 @@
       const p = btn.dataset.page;
       $$(".nav button").forEach(b => b.classList.toggle("active", b === btn));
       $$(".page").forEach(pg => pg.classList.toggle("active", pg.id === `page-${p}`));
+      if (p === "opt" && !intelLoaded) loadIntel();
     });
   });
 
@@ -84,20 +85,59 @@
     setRadar(spd * 0.6 + lat * 0.4);
   }
 
+  // ---- live stability sparkline ----
+  const spark = $("#spark"), sctx = spark.getContext("2d");
+  function drawSpark(series) {
+    const w = spark.width, h = spark.height;
+    sctx.clearRect(0, 0, w, h);
+    if (!series.length) return;
+    const vals = series.map(s => s.ms);
+    const okv = vals.filter(v => v > 0);
+    const max = Math.max(30, ...okv) * 1.1, min = 0;
+    const stepX = w / Math.max(1, series.length - 1);
+    // baseline grid
+    sctx.strokeStyle = "rgba(255,255,255,.06)"; sctx.lineWidth = 1;
+    for (let g = 1; g <= 3; g++) { const y = h * g / 4; sctx.beginPath(); sctx.moveTo(0, y); sctx.lineTo(w, y); sctx.stroke(); }
+    // line
+    sctx.lineWidth = 3; sctx.lineJoin = "round";
+    const grad = sctx.createLinearGradient(0, 0, w, 0);
+    grad.addColorStop(0, "#37B6FF"); grad.addColorStop(1, "#00E5A0");
+    sctx.strokeStyle = grad; sctx.beginPath();
+    let started = false;
+    series.forEach((s, i) => {
+      const x = i * stepX;
+      if (s.ms <= 0) { // packet loss marker
+        sctx.save(); sctx.strokeStyle = "#FF5470"; sctx.setLineDash([3, 3]);
+        sctx.beginPath(); sctx.moveTo(x, 0); sctx.lineTo(x, h); sctx.stroke(); sctx.restore();
+        started = false; return;
+      }
+      const y = h - ((s.ms - min) / (max - min)) * h;
+      if (!started) { sctx.moveTo(x, y); started = true; } else sctx.lineTo(x, y);
+    });
+    sctx.stroke();
+  }
+
+  const monitor = Engine.stabilityMonitor((s) => {
+    drawSpark(s.series);
+    $("#stbScore").textContent = s.score;
+    $("#stbAvg").textContent = s.avg ? `${s.avg.toFixed(0)}` : "—";
+    $("#stbLoss").textContent = `${s.loss.toFixed(0)}%`;
+    $("#stbLast").textContent = s.last > 0 ? `${s.last.toFixed(0)}` : "✕";
+    setRadar(s.score); // radar reflects live stability
+  });
+
   const pulseBtn = $("#pulseBtn");
   pulseBtn.addEventListener("click", async () => {
     if (pulsing) { // stop
-      pulsing = false; clearTimeout(pulseTimer);
+      pulsing = false; monitor.stop();
       pulseBtn.textContent = Lang.t("livePulse");
       return;
     }
     pulsing = true; pulseBtn.textContent = Lang.t("pulseStop");
-    const tick = async () => {
-      if (!pulsing) return;
-      await homeScan();
-      if (pulsing) pulseTimer = setTimeout(tick, 1200);
-    };
-    tick();
+    $("#liveCard").style.display = "block";
+    $("#radarQual").textContent = Lang.t("liveMonitor");
+    homeScan(); // one full pass for connection + est speed
+    monitor.clear(); monitor.start();
   });
   // first passive scan on load
   setTimeout(homeScan, 600);
@@ -143,12 +183,53 @@
     $("#verdicts").innerHTML = vs.map(v =>
       `<span class="chip ${v.cls}">${v.icon} ${v.label}</span>`).join("");
 
-    last = { down, up, ping, jit, ts: Date.now() };
+    // bufferbloat / latency-under-load
+    gaugePhase.textContent = "🎯 " + Lang.t("bufferbloat");
+    const bloat = await Engine.latencyUnderLoad();
+    renderBloat(bloat);
+    gaugePhase.textContent = "";
+
+    last = { down, up, ping, jit, bloat: bloat.bloat, grade: bloat.grade, ts: Date.now() };
     saveHistory(last);
     renderHistory();
+    renderPlan(down);
 
     btn.disabled = false; btn.textContent = Lang.t("start");
     running = false;
+  }
+
+  const GRADE_COLOR = { A: "var(--signal)", B: "#7CE0A0", C: "var(--warn)", D: "#FF8A5B", F: "var(--danger)" };
+  function renderBloat(b) {
+    $("#bloatResult").style.display = "block";
+    $("#blIdle").textContent = `${b.idle.toFixed(0)}`;
+    $("#blLoad").textContent = `${b.loaded.toFixed(0)}`;
+    const g = $("#blGrade");
+    g.textContent = b.grade;
+    g.style.color = GRADE_COLOR[b.grade];
+    g.style.background = GRADE_COLOR[b.grade].startsWith("var")
+      ? "rgba(0,229,160,.12)" : GRADE_COLOR[b.grade] + "22";
+    const key = { A: "bloatA", B: "bloatB", C: "bloatC", D: "bloatD", F: "bloatF" }[b.grade];
+    const v = $("#blVerdict");
+    v.textContent = `+${b.bloat.toFixed(0)} ${Lang.t("ms")} · ${Lang.t(key)}`;
+    v.style.color = GRADE_COLOR[b.grade];
+  }
+
+  // plan vs actual
+  function getPlan() { return parseFloat(localStorage.getItem("mawja_plan") || "0") || 0; }
+  $("#planSave").addEventListener("click", () => {
+    const v = parseFloat($("#planInput").value) || 0;
+    if (v > 0) { localStorage.setItem("mawja_plan", String(v)); toast(Lang.isAr() ? "تم الحفظ" : "Saved"); if (last) renderPlan(last.down); }
+  });
+  function renderPlan(down) {
+    const plan = getPlan();
+    if (!plan || !down) { $("#planResult").style.display = "none"; return; }
+    const pct = Math.min(100, (down / plan) * 100);
+    $("#planResult").style.display = "block";
+    $("#planBar").style.width = `${pct}%`;
+    $("#planPct").textContent = `${pct.toFixed(0)}% (${down.toFixed(0)}/${plan})`;
+    const key = pct >= 85 ? "planGreat" : pct >= 60 ? "planOk" : "planLow";
+    const col = pct >= 85 ? "var(--signal)" : pct >= 60 ? "var(--warn)" : "var(--danger)";
+    const v = $("#planVerdict"); v.textContent = Lang.t(key); v.style.color = col;
   }
   $("#speedBtn").addEventListener("click", runSpeed);
 
@@ -165,8 +246,9 @@
     $("#histList").innerHTML = h.map(r => {
       const d = new Date(r.ts);
       const t = d.toLocaleString(Lang.isAr() ? "ar" : "en", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+      const grade = r.grade ? ` · <b style="color:var(--warn)">${r.grade}</b>` : "";
       return `<div class="hist"><span class="d">${t}</span>
-        <span>⬇️ <b style="color:var(--signal)">${r.down.toFixed(1)}</b> · ⬆️ <b style="color:var(--wave)">${r.up.toFixed(1)}</b> · ${r.ping.toFixed(0)}${Lang.t("ms")}</span></div>`;
+        <span>⬇️ <b style="color:var(--signal)">${r.down.toFixed(1)}</b> · ⬆️ <b style="color:var(--wave)">${r.up.toFixed(1)}</b> · ${r.ping.toFixed(0)}${Lang.t("ms")}${grade}</span></div>`;
     }).join("");
   }
   renderHistory();
@@ -287,9 +369,28 @@
   // re-render language-dependent content
   document.addEventListener("langchange", () => {
     renderTips(); renderHistory(); renderSpots();
-    $("#radarQual").textContent = pulsing ? Lang.t("scanning") : ($("#radarPct").textContent === "—" ? Lang.t("tapToStart") : qualityLabel(parseFloat($("#radarPct").textContent)));
+    if (last) { if (last.bloat != null) renderBloat({ idle: last.ping, loaded: last.ping + last.bloat, bloat: last.bloat, grade: last.grade }); renderPlan(last.down); }
+    if (intelLoaded) loadIntel();
+    $("#radarQual").textContent = pulsing ? Lang.t("liveMonitor") : ($("#radarPct").textContent === "—" ? Lang.t("tapToStart") : qualityLabel(parseFloat($("#radarPct").textContent)));
     pulseBtn.textContent = pulsing ? Lang.t("pulseStop") : Lang.t("livePulse");
   });
+
+  // ---------- connection intel ----------
+  let intelLoaded = false;
+  async function loadIntel() {
+    intelLoaded = true;
+    ["ivIp", "ivIsp", "ivLoc", "ivEdge"].forEach(id => $("#" + id).textContent = "…");
+    const info = await Engine.connectionIntel();
+    $("#ivIp").textContent = info.ip || "—";
+    $("#ivIsp").textContent = info.isp || info.org || (info.asn ? "AS" + info.asn : "—");
+    const loc = [info.city, info.region, info.country].filter(Boolean).join("، ");
+    $("#ivLoc").textContent = (info.flag ? info.flag + " " : "") + (loc || "—");
+    $("#ivEdge").textContent = info.edge ? `☁️ ${info.edge}` : "—";
+  }
+  $("#intelRefresh").addEventListener("click", () => { intelLoaded = false; loadIntel(); });
+
+  // restore saved plan
+  (() => { const p = getPlan(); if (p) $("#planInput").value = p; })();
 
   // ---------- toast ----------
   let toastEl;

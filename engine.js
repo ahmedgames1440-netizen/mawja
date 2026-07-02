@@ -177,5 +177,95 @@ const Engine = (() => {
     ];
   }
 
-  return { ping, jitter, download, upload, dnsRace, connectionInfo, scoreSpot, verdicts, clamp };
+  // ---- single latency sample exposed for live monitoring ----
+  const pingSample = pingOnce;
+
+  // ================= PRO FEATURES =================
+
+  // ---- Bufferbloat / latency-under-load ----
+  // Measures latency while the link is saturated by a download; the jump vs
+  // idle latency is "bufferbloat" — the real reason fast links still lag in
+  // calls/gaming. Returns idle, loaded, bloat (ms) and an A–F grade.
+  function bloatGrade(ms) {
+    if (ms < 30) return "A";
+    if (ms < 60) return "B";
+    if (ms < 100) return "C";
+    if (ms < 200) return "D";
+    return "F";
+  }
+  async function latencyUnderLoad({ mb = 60, maxMs = 9000 } = {}) {
+    const idle = await ping(6);
+    const samples = [];
+    let loading = true;
+    const load = (async () => { try { for await (const _ of download(mb, maxMs)) {} } catch (_) {} loading = false; })();
+    // hammer latency probes for the duration of the download
+    while (loading) { const p = await pingOnce(2500); if (p > 0) samples.push(p); }
+    await load;
+    let loaded = idle;
+    if (samples.length) { samples.sort((a, b) => a - b); loaded = samples[Math.floor(samples.length / 2)]; } // median
+    const bloat = Math.max(0, loaded - (idle > 0 ? idle : 0));
+    return { idle: idle > 0 ? idle : 0, loaded, bloat, grade: bloatGrade(bloat) };
+  }
+
+  // ---- Connection intel: public IP, ISP, city, ASN + Cloudflare edge ----
+  async function connectionIntel() {
+    const out = { ip: null, isp: null, org: null, asn: null, city: null, region: null,
+                  country: null, countryCode: null, flag: null, edge: null };
+    // ISP / geo from ipwho.is (CORS-enabled, no key)
+    try {
+      const r = await fetch("https://ipwho.is/", { cache: "no-store" });
+      const j = await r.json();
+      if (j && j.success !== false) {
+        out.ip = j.ip; out.city = j.city; out.region = j.region;
+        out.country = j.country; out.countryCode = j.country_code;
+        out.flag = j.flag && j.flag.emoji;
+        if (j.connection) { out.isp = j.connection.isp; out.org = j.connection.org; out.asn = j.connection.asn; }
+      }
+    } catch (_) {}
+    // nearest Cloudflare edge (colo) from trace
+    try {
+      const t = await (await fetch("https://speed.cloudflare.com/cdn-cgi/trace", { cache: "no-store" })).text();
+      const m = {};
+      t.trim().split("\n").forEach((line) => { const i = line.indexOf("="); if (i > 0) m[line.slice(0, i)] = line.slice(i + 1); });
+      out.edge = m.colo || null;
+      if (!out.ip) out.ip = m.ip || null;
+    } catch (_) {}
+    return out;
+  }
+
+  // ---- Live stability: continuous ping stream with loss + stability score ----
+  // Returns an async controller with start()/stop(); calls onSample each tick.
+  function stabilityMonitor(onSample) {
+    let running = false;
+    const hist = []; // {t, ms} ; ms=-1 means lost
+    async function loop() {
+      while (running) {
+        const t0 = performance.now();
+        const p = await pingOnce(2000);
+        hist.push({ t: Date.now(), ms: p });
+        if (hist.length > 60) hist.shift();
+        const ok = hist.filter((h) => h.ms > 0).map((h) => h.ms);
+        const lost = hist.filter((h) => h.ms <= 0).length;
+        const loss = hist.length ? (lost / hist.length) * 100 : 0;
+        const avg = ok.length ? ok.reduce((a, b) => a + b, 0) / ok.length : 0;
+        const min = ok.length ? Math.min(...ok) : 0;
+        const max = ok.length ? Math.max(...ok) : 0;
+        // stability score 0..100: penalize spread (jitter) + loss
+        const spread = max - min;
+        const score = clamp(100 - spread / 2 - loss * 3, 0, 100);
+        onSample({ series: hist.slice(), last: p, avg, min, max, loss, score: Math.round(score) });
+        const elapsed = performance.now() - t0;
+        if (running && elapsed < 900) await new Promise((r) => setTimeout(r, 900 - elapsed));
+      }
+    }
+    return {
+      start() { if (!running) { running = true; loop(); } },
+      stop() { running = false; },
+      clear() { hist.length = 0; },
+    };
+  }
+
+  return { ping, jitter, pingSample, download, upload, dnsRace, connectionInfo,
+           scoreSpot, verdicts, clamp, latencyUnderLoad, bloatGrade,
+           connectionIntel, stabilityMonitor };
 })();

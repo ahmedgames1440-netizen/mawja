@@ -53,6 +53,16 @@
       <div class="stat"><span class="ic">📈</span><div><div class="l" data-t="jitter">التذبذب</div><div class="v" id="stJitter">—</div></div></div>
     </div>
     <button class="btn primary" id="pulseBtn" data-t="livePulse">🔴 نبض حيّ</button>
+    <div class="card" id="liveCard" style="display:none">
+      <div class="card-title"><span class="ic">📈</span><span data-t="liveMonitor">مراقبة حيّة</span></div>
+      <canvas id="spark" width="640" height="150" style="width:100%;height:90px;display:block;margin-top:10px"></canvas>
+      <div class="metrics" style="margin-top:10px">
+        <div class="m"><div class="mv" id="stbScore" style="color:var(--signal)">—</div><div class="ml" data-t="stability">الاستقرار</div></div>
+        <div class="m"><div class="mv" id="stbAvg" style="color:var(--wave)">—</div><div class="ml" data-t="avg">متوسط</div></div>
+        <div class="m"><div class="mv" id="stbLoss" style="color:var(--danger)">—</div><div class="ml" data-t="packetLoss">فقد الحزم</div></div>
+        <div class="m"><div class="mv" id="stbLast" style="color:var(--warn)">—</div><div class="ml" data-t="ping">بنق</div></div>
+      </div>
+    </div>
     <p class="footer-note" data-t="webNote">نسخة الويب تقيس الأداء الفعلي (السرعة، البنق، التذبذب). لقراءة قوة الإشارة dBm والقنوات ثبّت تطبيق أندرويد.</p>
   </section>
 
@@ -77,6 +87,38 @@
     <div class="btn-row">
       <button class="link-btn" id="shareBtn" style="color:var(--wave)">🔗 <span data-t="share">مشاركة النتيجة</span></button>
     </div>
+
+    <!-- Bufferbloat / latency-under-load -->
+    <div class="card" id="bloatCard">
+      <div class="card-title"><span class="ic">🎯</span><span data-t="bufferbloat">زمن الاستجابة تحت الحِمل</span></div>
+      <p class="muted" data-t="bloatHint"></p>
+      <div id="bloatResult" style="display:none">
+        <div class="bloat-row">
+          <div class="bloat-cell"><div class="bl-v" id="blIdle">—</div><div class="bl-l" data-t="idle">خامل</div></div>
+          <div class="bloat-arrow">→</div>
+          <div class="bloat-cell"><div class="bl-v" id="blLoad" style="color:var(--warn)">—</div><div class="bl-l" data-t="underLoad">تحت الحِمل</div></div>
+          <div class="bloat-grade" id="blGrade">—</div>
+        </div>
+        <div class="bl-verdict" id="blVerdict"></div>
+      </div>
+    </div>
+
+    <!-- Plan vs actual -->
+    <div class="card" id="planCard">
+      <div class="card-title"><span class="ic">📃</span><span data-t="yourPlan">سرعة اشتراكك</span></div>
+      <p class="muted" data-t="planHint"></p>
+      <div class="plan-input">
+        <input id="planInput" type="number" inputmode="numeric" min="1" placeholder="100">
+        <span class="unit" data-t="mbps">ميجابت/ث</span>
+        <button class="btn small primary" id="planSave" data-t="save" style="margin-top:0">حفظ</button>
+      </div>
+      <div id="planResult" style="display:none;margin-top:12px">
+        <div class="bar-track" style="height:12px"><div class="bar-fill" id="planBar" style="width:0%"></div></div>
+        <div class="plan-meta"><span id="planPct" style="font-weight:800">—</span> <span data-t="ofPlan">من خطتك</span></div>
+        <div class="bl-verdict" id="planVerdict"></div>
+      </div>
+    </div>
+
     <div class="card" id="histCard" style="display:none">
       <div class="card-title"><span class="ic">🕘</span><span data-t="history">السجل</span></div>
       <div id="histList"></div>
@@ -98,6 +140,33 @@
   <!-- ===== OPTIMIZER ===== -->
   <section class="page" id="page-opt">
     <h2 data-t="optimizer">المُحسِّن</h2>
+
+    <!-- Connection intel -->
+    <div class="card">
+      <div class="card-title">
+        <span class="ic">🛰️</span><span data-t="connIntel">معلومات اتصالك</span>
+        <button class="icon-btn ghost" id="intelRefresh" style="margin-inline-start:auto;width:34px;height:34px;font-size:14px" aria-label="refresh">↻</button>
+      </div>
+      <div id="intelBody">
+        <div class="intel-row"><span class="il" data-t="publicIp">IP العام</span><span class="iv" id="ivIp">…</span></div>
+        <div class="intel-row"><span class="il" data-t="isp">المزوّد</span><span class="iv" id="ivIsp">…</span></div>
+        <div class="intel-row"><span class="il" data-t="location">الموقع</span><span class="iv" id="ivLoc">…</span></div>
+        <div class="intel-row"><span class="il" data-t="edge">أقرب خادم</span><span class="iv" id="ivEdge">…</span></div>
+      </div>
+    </div>
+
+    <!-- Router quick access -->
+    <div class="card">
+      <div class="card-title"><span class="ic">🔑</span><span data-t="routerAccess">دخول الراوتر</span></div>
+      <p class="muted" data-t="routerHint"></p>
+      <div class="router-links">
+        <a class="rlink" href="http://192.168.1.1" target="_blank" rel="noopener">192.168.1.1</a>
+        <a class="rlink" href="http://192.168.0.1" target="_blank" rel="noopener">192.168.0.1</a>
+        <a class="rlink" href="http://192.168.8.1" target="_blank" rel="noopener">192.168.8.1</a>
+        <a class="rlink" href="http://10.0.0.1" target="_blank" rel="noopener">10.0.0.1</a>
+        <a class="rlink" href="http://192.168.100.1" target="_blank" rel="noopener">192.168.100.1</a>
+      </div>
+    </div>
 
     <div class="card">
       <div class="card-title"><span class="ic">🧭</span><span data-t="dnsTest">أسرع DNS لشبكتك</span></div>
