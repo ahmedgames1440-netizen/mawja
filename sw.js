@@ -1,5 +1,5 @@
 /* موجة service worker — offline shell cache */
-const CACHE = "mawja-v1";
+const CACHE = "mawja-v2";
 const ASSETS = [
   "./",
   "./index.html",
@@ -35,16 +35,28 @@ self.addEventListener("fetch", (e) => {
     return; // default network handling
   }
   if (e.request.method !== "GET") return;
-  // cache-first for our own shell/fonts, fall back to network
-  e.respondWith(
-    caches.match(e.request).then((cached) =>
-      cached || fetch(e.request).then((res) => {
-        if (res.ok && (url.origin === location.origin || url.hostname.includes("gstatic") || url.hostname.includes("googleapis"))) {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(e.request, copy));
-        }
+
+  // Same-origin app code/shell: NETWORK-FIRST so updates always propagate,
+  // fall back to cache only when offline.
+  if (url.origin === location.origin) {
+    e.respondWith(
+      fetch(e.request).then((res) => {
+        if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(e.request, copy)); }
         return res;
-      }).catch(() => cached)
-    )
-  );
+      }).catch(() => caches.match(e.request))
+    );
+    return;
+  }
+
+  // Cross-origin fonts: cache-first (they rarely change).
+  if (url.hostname.includes("gstatic") || url.hostname.includes("googleapis")) {
+    e.respondWith(
+      caches.match(e.request).then((cached) =>
+        cached || fetch(e.request).then((res) => {
+          if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(e.request, copy)); }
+          return res;
+        }).catch(() => cached)
+      )
+    );
+  }
 });
