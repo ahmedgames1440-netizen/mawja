@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<title>موجة | Mawja</title>
+<meta name="description" content="موجة — تحليل وتحسين شبكة WiFi: اختبار سرعة حقيقي، رادار الإشارة، أفضل موقع للمودم، وأسرع DNS.">
+<meta name="theme-color" content="#070C17">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="موجة">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body dir="rtl">
+<div id="app">
+  <header class="appbar">
+    <div class="brand">
+      <h1 data-t="appName">موجة</h1>
+      <span class="tag" data-t="tagline">شبكتك.. بأفضل حالاتها</span>
+    </div>
+    <button class="icon-btn ghost" id="langBtn" title="AR / EN" aria-label="language">AR</button>
+  </header>
+
+  <div class="install" id="installBar">
+    <span class="ic">📲</span>
+    <span class="t" data-t="installMsg">ثبّت «موجة» على شاشتك الرئيسية لتشغيله كتطبيق.</span>
+    <button id="installBtn" data-t="install">تثبيت</button>
+    <button class="x icon-btn ghost" id="installClose" aria-label="close">✕</button>
+  </div>
+
+  <!-- ===== HOME / RADAR ===== -->
+  <section class="page active" id="page-home">
+    <div class="radar-wrap">
+      <canvas id="radar" width="640" height="640"></canvas>
+      <div class="radar-center">
+        <div class="pct" id="radarPct">—</div>
+        <div class="qual" id="radarQual" data-t="tapToStart">اضغط للفحص</div>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="stat"><span class="ic">📶</span><div><div class="l" data-t="connection">الاتصال</div><div class="v" id="stConn">—</div></div></div>
+      <div class="stat"><span class="ic">⚡</span><div><div class="l" data-t="ping">بنق</div><div class="v" id="stPing">—</div></div></div>
+    </div>
+    <div class="grid2" style="margin-top:12px">
+      <div class="stat"><span class="ic">⬇️</span><div><div class="l" data-t="estDown">سرعة تقديرية</div><div class="v" id="stDown">—</div></div></div>
+      <div class="stat"><span class="ic">📈</span><div><div class="l" data-t="jitter">التذبذب</div><div class="v" id="stJitter">—</div></div></div>
+    </div>
+    <button class="btn primary" id="pulseBtn" data-t="livePulse">🔴 نبض حيّ</button>
+    <p class="footer-note" data-t="webNote">نسخة الويب تقيس الأداء الفعلي (السرعة، البنق، التذبذب). لقراءة قوة الإشارة dBm والقنوات ثبّت تطبيق أندرويد.</p>
+  </section>
+
+  <!-- ===== SPEED TEST ===== -->
+  <section class="page" id="page-speed">
+    <h2 data-t="speedTest">اختبار السرعة</h2>
+    <div class="card">
+      <div class="gauge">
+        <div class="big" id="gaugeVal">0.0</div>
+        <div class="unit" data-t="mbps">ميجابت/ث</div>
+        <div class="phase" id="gaugePhase"></div>
+      </div>
+      <div class="metrics">
+        <div class="m"><div class="mv" id="mDown" style="color:var(--signal)">—</div><div class="ml" data-t="download">تحميل</div></div>
+        <div class="m"><div class="mv" id="mUp" style="color:var(--wave)">—</div><div class="ml" data-t="upload">رفع</div></div>
+        <div class="m"><div class="mv" id="mPing" style="color:var(--warn)">—</div><div class="ml" data-t="ping">بنق</div></div>
+        <div class="m"><div class="mv" id="mJit" style="color:var(--danger)">—</div><div class="ml" data-t="jitter">تذبذب</div></div>
+      </div>
+      <div class="verdicts" id="verdicts"></div>
+    </div>
+    <button class="btn primary" id="speedBtn" data-t="start">ابدأ</button>
+    <div class="btn-row">
+      <button class="link-btn" id="shareBtn" style="color:var(--wave)">🔗 <span data-t="share">مشاركة النتيجة</span></button>
+    </div>
+    <div class="card" id="histCard" style="display:none">
+      <div class="card-title"><span class="ic">🕘</span><span data-t="history">السجل</span></div>
+      <div id="histList"></div>
+    </div>
+  </section>
+
+  <!-- ===== PLACEMENT ===== -->
+  <section class="page" id="page-place">
+    <h2 data-t="placement">أفضل موقع</h2>
+    <p class="muted" data-t="placementHint">تنقّل بجوالك في أرجاء المكان، وفي كل غرفة اضغط «قِس هنا». سنرتب المواقع ونخبرك أين يجب أن يكون المودم.</p>
+    <button class="btn wave" id="measureBtn" data-t="measureHere">قِس هنا</button>
+    <div id="bestSpot"></div>
+    <div class="card" id="spotsCard" style="display:none">
+      <div id="spotsList"></div>
+    </div>
+    <button class="link-btn" id="clearSpots" style="display:none">🗑️ <span data-t="clearAll">مسح الكل</span></button>
+  </section>
+
+  <!-- ===== OPTIMIZER ===== -->
+  <section class="page" id="page-opt">
+    <h2 data-t="optimizer">المُحسِّن</h2>
+
+    <div class="card">
+      <div class="card-title"><span class="ic">🧭</span><span data-t="dnsTest">أسرع DNS لشبكتك</span></div>
+      <p class="muted" data-t="dnsHint">يقيس زمن استجابة كل مزوّد DNS من موقعك. الأسرع = تصفّح أسرع.</p>
+      <div id="dnsList"></div>
+      <button class="btn outline small" id="dnsBtn" data-t="runDns">افحص خوادم DNS</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="ic">📡</span><span data-t="channelGuide">دليل القنوات</span></div>
+      <p class="muted" data-t="channelHint">القنوات غير المتداخلة على 2.4GHz هي 1 و6 و11. إن كان بيتك مزدحماً بالشبكات، اختر إحداها من إعدادات الراوتر، وفضّل نطاق 5GHz للأجهزة القريبة.</p>
+      <div class="grid4" style="margin-top:10px">
+        <div class="stat" style="justify-content:center"><span class="v">1</span></div>
+        <div class="stat" style="justify-content:center"><span class="v">6</span></div>
+        <div class="stat" style="justify-content:center"><span class="v">11</span></div>
+        <div class="stat" style="justify-content:center"><span class="v" style="color:var(--signal)">5G</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="ic">💡</span><span data-t="tips">نصائح ذهبية</span></div>
+      <div id="tipsList"></div>
+    </div>
+
+    <p class="footer-note"><span data-t="madeWith">صُنع بشغف</span> · Mawja © 2026</p>
+  </section>
+
+  <nav class="nav">
+    <button data-page="home" class="active"><span class="ic">📡</span><span data-t="home">الرئيسية</span></button>
+    <button data-page="speed"><span class="ic">⚡</span><span data-t="speedTest">السرعة</span></button>
+    <button data-page="place"><span class="ic">🧭</span><span data-t="placement">أفضل موقع</span></button>
+    <button data-page="opt"><span class="ic">✨</span><span data-t="optimizer">المُحسِّن</span></button>
+  </nav>
+</div>
+
+<!-- room dialog -->
+<dialog id="roomDlg">
+  <h3 data-t="roomName">اسم الغرفة</h3>
+  <input id="roomInput" autocomplete="off" placeholder="…">
+  <div class="dlg-actions">
+    <button class="btn small" style="background:rgba(255,255,255,.08);color:var(--ink)" id="roomCancel" data-t="cancel">إلغاء</button>
+    <button class="btn small primary" id="roomOk" data-t="start">ابدأ</button>
+  </div>
+</dialog>
+
+<script src="i18n.js"></script>
+<script src="engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

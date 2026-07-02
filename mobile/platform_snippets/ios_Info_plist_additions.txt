@@ -1,0 +1,7 @@
+<!-- أضف داخل ios/Runner/Info.plist -->
+<key>NSLocationWhenInUseUsageDescription</key>
+<string>نحتاج الموقع لقراءة اسم شبكة WiFi الحالية (شرط من Apple)</string>
+<key>NSLocalNetworkUsageDescription</key>
+<string>لقياس زمن الاستجابة داخل شبكتك المحلية</string>
+
+ملاحظة مهمة: في Xcode فعّل Capability باسم "Access WiFi Information" من Signing & Capabilities.

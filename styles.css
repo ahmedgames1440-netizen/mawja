@@ -1,0 +1,187 @@
+/* ===== موجة | Mawja — Deep Ocean theme ===== */
+:root{
+  --bg:#070C17;
+  --surface:#101A2E;
+  --surface2:#16233D;
+  --signal:#00E5A0;
+  --wave:#37B6FF;
+  --warn:#FFB547;
+  --danger:#FF5470;
+  --ink:#EAF2FF;
+  --ink-dim:#8A9BB8;
+  --radius:22px;
+  --card-border:rgba(255,255,255,.06);
+  --shadow:0 10px 40px rgba(0,0,0,.45);
+}
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;height:100%}
+body{
+  background:radial-gradient(1200px 800px at 50% -10%, #0c1730 0%, var(--bg) 60%);
+  color:var(--ink);
+  font-family:"Tajawal","Space Grotesk",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  overscroll-behavior-y:none;
+}
+body[dir="ltr"]{font-family:"Space Grotesk","Tajawal",system-ui,sans-serif}
+
+#app{max-width:520px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;padding-bottom:88px}
+
+/* ---- Header ---- */
+.appbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:20px 20px 4px;
+}
+.brand{display:flex;flex-direction:column;gap:2px}
+.brand h1{margin:0;font-size:28px;font-weight:800;letter-spacing:.3px}
+.brand .tag{color:var(--ink-dim);font-size:13px}
+.icon-btn{
+  width:44px;height:44px;border:none;border-radius:14px;cursor:pointer;
+  background:var(--surface2);color:var(--ink);font-size:16px;font-weight:700;
+  display:grid;place-items:center;transition:transform .15s, background .2s;
+}
+.icon-btn:active{transform:scale(.92)}
+.icon-btn.ghost{background:rgba(255,255,255,.05)}
+
+/* ---- Pages ---- */
+.page{display:none;padding:12px 20px 20px;animation:fade .35s ease}
+.page.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.page h2{font-size:22px;font-weight:800;margin:8px 0 6px}
+.muted{color:var(--ink-dim);font-size:14px;line-height:1.7}
+
+/* ---- Cards ---- */
+.card{
+  background:var(--surface);border:1px solid var(--card-border);
+  border-radius:var(--radius);padding:16px;margin-top:14px;box-shadow:var(--shadow);
+}
+.card.tint-signal{background:linear-gradient(180deg, rgba(0,229,160,.12), rgba(0,229,160,.03))}
+.card.tint-wave{background:linear-gradient(180deg, rgba(55,182,255,.10), rgba(55,182,255,.02))}
+.card-title{display:flex;align-items:center;gap:10px;font-weight:800;font-size:15px}
+.card-title .ic{font-size:18px}
+
+/* ---- Radar ---- */
+.radar-wrap{position:relative;width:min(78vw,320px);aspect-ratio:1;margin:18px auto 6px}
+#radar{width:100%;height:100%;display:block}
+.radar-center{
+  position:absolute;inset:0;display:grid;place-content:center;text-align:center;gap:2px;pointer-events:none
+}
+.radar-center .pct{font-size:52px;font-weight:800;color:var(--signal);line-height:1}
+.radar-center .qual{color:var(--ink-dim);font-size:15px}
+
+/* ---- Stat grid ---- */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.stat{
+  background:var(--surface);border:1px solid var(--card-border);border-radius:18px;padding:14px;
+  display:flex;align-items:center;gap:10px
+}
+.stat .ic{font-size:20px;color:var(--wave)}
+.stat .l{color:var(--ink-dim);font-size:12px}
+.stat .v{font-weight:800;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ---- Speed gauge ---- */
+.gauge{text-align:center;padding:26px 0 14px}
+.gauge .big{font-size:64px;font-weight:800;line-height:1;color:var(--signal);font-variant-numeric:tabular-nums}
+.gauge .big.up{color:var(--wave)}
+.gauge .unit{color:var(--ink-dim);margin-top:4px}
+.gauge .phase{color:var(--warn);font-size:13px;margin-top:8px;min-height:18px;font-weight:700}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center;margin-top:6px}
+.metrics .m .mv{font-weight:800;font-size:19px}
+.metrics .m .ml{color:var(--ink-dim);font-size:11px}
+
+/* verdict chips */
+.verdicts{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;justify-content:center}
+.chip{
+  font-size:12px;font-weight:700;padding:7px 12px;border-radius:999px;
+  background:rgba(255,255,255,.05);border:1px solid var(--card-border);display:flex;gap:6px;align-items:center
+}
+.chip.ok{color:var(--signal);border-color:rgba(0,229,160,.35)}
+.chip.mid{color:var(--warn);border-color:rgba(255,181,71,.35)}
+.chip.bad{color:var(--danger);border-color:rgba(255,84,112,.35)}
+
+/* ---- Buttons ---- */
+.btn{
+  width:100%;border:none;border-radius:18px;padding:17px;font-size:17px;font-weight:800;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:10px;transition:transform .12s, filter .2s;margin-top:16px
+}
+.btn:active{transform:scale(.98)}
+.btn:disabled{filter:grayscale(.4) brightness(.8);cursor:default}
+.btn.primary{background:var(--signal);color:#04120c}
+.btn.wave{background:var(--wave);color:#03121f}
+.btn.outline{background:transparent;border:1.5px solid var(--wave);color:var(--wave)}
+.btn.small{padding:12px;font-size:14px;margin-top:10px;width:auto}
+.btn-row{display:flex;gap:10px}
+.link-btn{background:none;border:none;color:var(--danger);font-weight:700;cursor:pointer;padding:10px 0;display:flex;align-items:center;gap:6px;font-size:14px}
+
+/* ---- Placement list ---- */
+.spot{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--card-border)}
+.spot:first-child{border-top:none}
+.rank{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:800;flex:0 0 auto}
+.spot .room{font-weight:700}
+.spot .sub{color:var(--ink-dim);font-size:12px}
+.spot .sc{margin-inline-start:auto;font-weight:800;font-size:22px}
+
+/* ---- DNS / bars ---- */
+.dns-row{display:flex;align-items:center;gap:8px;padding:8px 0}
+.dns-row .nm{font-weight:600}
+.dns-row .ip{color:var(--ink-dim);font-size:12px}
+.dns-row .ms{margin-inline-start:auto;font-weight:800}
+.bar-track{height:8px;border-radius:6px;background:rgba(255,255,255,.06);overflow:hidden;margin-top:6px}
+.bar-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--wave),var(--signal));transition:width .5s}
+
+/* ---- Tips ---- */
+.tip{display:flex;gap:10px;padding:7px 0;line-height:1.6}
+.tip .dot{color:var(--signal);font-weight:800}
+
+/* history */
+.hist{display:flex;justify-content:space-between;gap:8px;padding:9px 0;border-top:1px solid var(--card-border);font-size:13px}
+.hist:first-child{border-top:none}
+.hist .d{color:var(--ink-dim)}
+
+/* ---- Bottom nav ---- */
+.nav{
+  position:fixed;left:0;right:0;bottom:0;z-index:20;
+  max-width:520px;margin:0 auto;
+  background:rgba(16,26,46,.92);backdrop-filter:blur(14px);
+  border-top:1px solid var(--card-border);
+  display:grid;grid-template-columns:repeat(4,1fr);
+  padding:8px 8px calc(8px + env(safe-area-inset-bottom));
+}
+.nav button{
+  background:none;border:none;color:var(--ink-dim);cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;font-weight:600;padding:6px 0;border-radius:14px
+}
+.nav button .ic{font-size:22px;line-height:1}
+.nav button.active{color:var(--signal)}
+.nav button.active .ic{filter:drop-shadow(0 0 8px rgba(0,229,160,.6))}
+
+/* install banner */
+.install{
+  display:none;align-items:center;gap:10px;margin:14px 20px 0;padding:12px 14px;
+  background:linear-gradient(90deg, rgba(0,229,160,.14), rgba(55,182,255,.10));
+  border:1px solid rgba(0,229,160,.3);border-radius:16px
+}
+.install.show{display:flex}
+.install .t{flex:1;font-size:13px}
+.install button{background:var(--signal);color:#04120c;border:none;border-radius:12px;padding:8px 14px;font-weight:800;cursor:pointer}
+.install .x{background:none;color:var(--ink-dim);font-size:18px}
+
+/* dialog */
+dialog{
+  border:none;border-radius:22px;background:var(--surface2);color:var(--ink);padding:22px;
+  width:min(90vw,360px);box-shadow:var(--shadow)
+}
+dialog::backdrop{background:rgba(3,7,15,.7);backdrop-filter:blur(2px)}
+dialog h3{margin:0 0 14px;font-size:18px}
+dialog input{
+  width:100%;padding:14px;border-radius:14px;border:1px solid var(--card-border);
+  background:var(--bg);color:var(--ink);font-size:16px;font-family:inherit
+}
+.dlg-actions{display:flex;gap:10px;margin-top:16px;justify-content:flex-end}
+
+.spin{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.25);border-top-color:#04120c;border-radius:50%;animation:sp .7s linear infinite}
+.btn.wave .spin{border-top-color:#03121f}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+.footer-note{color:var(--ink-dim);font-size:12px;line-height:1.7;margin-top:16px;text-align:center}

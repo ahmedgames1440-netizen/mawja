@@ -1,0 +1,29 @@
+name: mawja
+description: "Mawja | موجة — WiFi analyzer, speed test & smart modem placement"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:          # دعم الترجمة و RTL (كان ناقصاً)
+    sdk: flutter
+  http: ^1.2.0
+  network_info_plus: ^5.0.3      # اسم الشبكة الحالية (Android + iOS)
+  wifi_iot: ^0.3.19              # قوة الإشارة والقنوات (Android)
+  wifi_scan: ^0.4.1              # مسح الشبكات المجاورة (Android)
+  permission_handler: ^11.3.0
+  shared_preferences: ^2.2.2
+  google_fonts: ^6.2.1
+  fl_chart: ^0.68.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
