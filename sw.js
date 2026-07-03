@@ -1,5 +1,5 @@
 /* موجة service worker — offline shell cache */
-const CACHE = "mawja-v3";
+const CACHE = "mawja-v4";
 const ASSETS = [
   "./",
   "./index.html",

@@ -193,6 +193,7 @@
     saveHistory(last);
     renderHistory();
     renderPlan(down);
+    renderHealth();
 
     btn.disabled = false; btn.textContent = Lang.t("start");
     running = false;
@@ -370,6 +371,7 @@
   document.addEventListener("langchange", () => {
     renderTips(); renderHistory(); renderSpots();
     if (last) { if (last.bloat != null) renderBloat({ idle: last.ping, loaded: last.ping + last.bloat, bloat: last.bloat, grade: last.grade }); renderPlan(last.down); }
+    renderHealth();
     if (intelLoaded) loadIntel();
     $("#radarQual").textContent = pulsing ? Lang.t("liveMonitor") : ($("#radarPct").textContent === "—" ? Lang.t("tapToStart") : qualityLabel(parseFloat($("#radarPct").textContent)));
     pulseBtn.textContent = pulsing ? Lang.t("pulseStop") : Lang.t("livePulse");
@@ -391,6 +393,125 @@
 
   // restore saved plan
   (() => { const p = getPlan(); if (p) $("#planInput").value = p; })();
+
+  // ---------- Network Health Score ----------
+  function latestResult() { return last || getHistory()[0] || null; }
+  function healthMsgFor(s) {
+    const k = s >= 80 ? "excellent" : s >= 55 ? "good" : s >= 40 ? "fair" : "weak";
+    return Lang.t(k);
+  }
+  const REC_KEY = { speed: "recSpeed", latency: "recLatency", bloat: "recBloat", jitter: "recJitter" };
+  function renderHealth() {
+    const d = latestResult();
+    if (!d) return;
+    const h = Engine.healthScore({ down: d.down, up: d.up, ping: d.ping, jit: d.jit, grade: d.grade, plan: getPlan() });
+    const C = 327, arc = $("#healthArc");
+    const col = h.score >= 80 ? "var(--signal)" : h.score >= 55 ? "var(--warn)" : "var(--danger)";
+    arc.style.strokeDashoffset = String(C * (1 - h.score / 100));
+    arc.style.stroke = col;
+    $("#hsGrade").textContent = h.grade; $("#hsGrade").style.color = col;
+    $("#hsNum").textContent = `${h.score}/100`;
+    $("#healthMsg").textContent = healthMsgFor(h.score);
+    $("#healthRun").textContent = Lang.t("runTest");
+    if (h.tips.length) {
+      $("#recsCard").style.display = "block";
+      $("#recsList").innerHTML = h.tips.map(t =>
+        `<div class="tip"><span class="dot">•</span><span>${Lang.t(REC_KEY[t])}</span></div>`).join("");
+    } else $("#recsCard").style.display = "none";
+  }
+  $("#healthRun").addEventListener("click", () => {
+    document.querySelector('[data-page="speed"]').click();
+    runSpeed();
+  });
+  renderHealth(); // from stored history if any
+
+  // ---------- Reach: apps & games response time ----------
+  function reachColor(ms) { return ms < 0 ? "var(--ink-dim)" : ms < 80 ? "var(--signal)" : ms < 200 ? "var(--warn)" : "var(--danger)"; }
+  function reachRow(r, max) {
+    const c = reachColor(r.ms);
+    const w = r.ms > 0 ? Math.max(8, (r.ms / max) * 100) : 0;
+    return `<div class="reach-row"><span class="re-ic">${r.icon}</span><span class="re-nm">${esc(r.name)}</span>
+      <span class="re-bar"><span style="width:${w}%;background:${c}"></span></span>
+      <span class="re-ms" style="color:${c}">${r.ms > 0 ? r.ms.toFixed(0) + " " + Lang.t("ms") : "—"}</span></div>`;
+  }
+  let reaching = false;
+  async function runReach() {
+    if (reaching) return; reaching = true;
+    const btn = $("#reachBtn");
+    btn.disabled = true; btn.innerHTML = `<span class="spin"></span> ${Lang.t("testing")}`;
+    $("#appsCard").style.display = "block"; $("#gamesCard").style.display = "block";
+    const results = { apps: [], games: [] };
+    const render = (cat) => {
+      const list = results[cat].slice().sort((a, b) => (a.ms < 0 ? 9e9 : a.ms) - (b.ms < 0 ? 9e9 : b.ms));
+      const max = Math.max(60, ...list.filter(x => x.ms > 0).map(x => x.ms));
+      $(cat === "apps" ? "#appsList" : "#gamesList").innerHTML = list.map(r => reachRow(r, max)).join("");
+    };
+    for (const s of Engine.reachServices) {
+      const r = await Engine.reachMeasure(s);
+      results[s.cat].push(r); render(s.cat);
+    }
+    btn.disabled = false; btn.textContent = Lang.t("runReach"); reaching = false;
+  }
+  $("#reachBtn").addEventListener("click", runReach);
+
+  // ---------- Shareable report image ----------
+  async function makeReport() {
+    const d = latestResult();
+    if (!d) { toast(Lang.t("healthEmpty")); document.querySelector('[data-page="speed"]').click(); return; }
+    const h = Engine.healthScore({ down: d.down, up: d.up, ping: d.ping, jit: d.jit, grade: d.grade, plan: getPlan() });
+    const W = 800, H = 520, cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+    const x = cv.getContext("2d");
+    // background
+    const bg = x.createLinearGradient(0, 0, W, H); bg.addColorStop(0, "#0c1730"); bg.addColorStop(1, "#070C17");
+    x.fillStyle = bg; x.fillRect(0, 0, W, H);
+    x.fillStyle = "rgba(255,255,255,.04)"; roundRect(x, 24, 24, W - 48, H - 48, 28); x.fill();
+    // brand
+    x.textAlign = "left"; x.fillStyle = "#EAF2FF";
+    x.font = "800 40px Tajawal, sans-serif"; x.fillText("موجة", 56, 92);
+    x.fillStyle = "#8A9BB8"; x.font = "500 20px Space Grotesk, sans-serif"; x.fillText("Mawja · Network Report", 56, 122);
+    x.textAlign = "right"; x.fillStyle = "#8A9BB8"; x.font = "400 18px Space Grotesk, sans-serif";
+    x.fillText(new Date(d.ts || Date.now()).toLocaleString(Lang.isAr() ? "ar" : "en"), W - 56, 92);
+    // health ring
+    const cx = 660, cy = 250, r = 74;
+    x.lineWidth = 16; x.strokeStyle = "rgba(255,255,255,.10)"; x.beginPath(); x.arc(cx, cy, r, 0, Math.PI * 2); x.stroke();
+    const col = h.score >= 80 ? "#00E5A0" : h.score >= 55 ? "#FFB547" : "#FF5470";
+    x.strokeStyle = col; x.lineCap = "round"; x.beginPath();
+    x.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (h.score / 100)); x.stroke();
+    x.textAlign = "center"; x.fillStyle = col; x.font = "800 46px Tajawal, sans-serif"; x.fillText(h.grade, cx, cy + 6);
+    x.fillStyle = "#8A9BB8"; x.font = "500 18px Space Grotesk, sans-serif"; x.fillText(`${h.score}/100`, cx, cy + 34);
+    // metrics grid
+    const metrics = [
+      ["⬇ " + Lang.t("download"), d.down.toFixed(1) + " " + Lang.t("mbps"), "#00E5A0"],
+      ["⬆ " + Lang.t("upload"), d.up.toFixed(1) + " " + Lang.t("mbps"), "#37B6FF"],
+      [Lang.t("ping"), d.ping.toFixed(0) + " " + Lang.t("ms"), "#FFB547"],
+      [Lang.t("bufferbloat"), (d.grade || "—"), "#FF8A5B"],
+    ];
+    x.textAlign = "left";
+    metrics.forEach((m, i) => {
+      const px = 56, py = 190 + i * 74;
+      x.fillStyle = "#8A9BB8"; x.font = "500 18px Space Grotesk, sans-serif"; x.fillText(m[0], px, py);
+      x.fillStyle = m[2]; x.font = "800 32px Space Grotesk, sans-serif"; x.fillText(m[1], px, py + 32);
+    });
+    x.textAlign = "center"; x.fillStyle = "#8A9BB8"; x.font = "400 16px Space Grotesk, sans-serif";
+    x.fillText("ahmedgames1440-netizen.github.io/mawja", W / 2, H - 44);
+
+    const blob = await new Promise((res) => cv.toBlob(res, "image/png"));
+    const file = new File([blob], "mawja-report.png", { type: "image/png" });
+    try {
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: "Mawja", text: Lang.isAr() ? "تقرير شبكتي من موجة" : "My Mawja network report" });
+      } else {
+        const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "mawja-report.png"; a.click();
+        toast(Lang.t("reportSaved"));
+      }
+    } catch (_) {}
+  }
+  function roundRect(ctx, x0, y0, w, h, r) {
+    ctx.beginPath(); ctx.moveTo(x0 + r, y0);
+    ctx.arcTo(x0 + w, y0, x0 + w, y0 + h, r); ctx.arcTo(x0 + w, y0 + h, x0, y0 + h, r);
+    ctx.arcTo(x0, y0 + h, x0, y0, r); ctx.arcTo(x0, y0, x0 + w, y0, r); ctx.closePath();
+  }
+  $("#reportBtn").addEventListener("click", makeReport);
 
   // ---------- toast ----------
   let toastEl;

@@ -207,6 +207,30 @@ dialog input{
 .intel-row .il{color:var(--ink-dim);font-size:13px}
 .intel-row .iv{margin-inline-start:auto;font-weight:700;font-size:14px;text-align:end;word-break:break-all}
 
+/* ---- Health score ---- */
+.card.health{display:flex;align-items:center;gap:16px}
+.health-ring{position:relative;width:104px;height:104px;flex:0 0 auto}
+.health-ring svg{width:104px;height:104px}
+#healthArc{transition:stroke-dashoffset .8s ease, stroke .4s}
+.health-center{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.health-center .hs-grade{font-size:32px;font-weight:800;line-height:1;color:var(--signal)}
+.health-center .hs-num{font-size:12px;color:var(--ink-dim)}
+.health-info{flex:1;min-width:0}
+
+/* ---- Reach rows ---- */
+.reach-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--card-border)}
+.reach-row:first-child{border-top:none}
+.reach-row .re-ic{font-size:18px;width:24px;text-align:center}
+.reach-row .re-nm{font-weight:700}
+.reach-row .re-ms{margin-inline-start:auto;font-weight:800;font-variant-numeric:tabular-nums}
+.reach-row .re-bar{flex:0 0 84px;height:7px;border-radius:5px;background:rgba(255,255,255,.06);overflow:hidden}
+.reach-row .re-bar > span{display:block;height:100%;border-radius:5px}
+
+/* 5-column nav */
+.nav.nav5{grid-template-columns:repeat(5,1fr)}
+.nav.nav5 button{font-size:10px}
+.nav.nav5 button .ic{font-size:20px}
+
 /* ---- Router links ---- */
 .router-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .rlink{text-decoration:none;color:var(--wave);font-weight:700;font-size:13px;padding:9px 14px;border-radius:12px;background:rgba(55,182,255,.10);border:1px solid rgba(55,182,255,.25)}

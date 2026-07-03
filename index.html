@@ -37,6 +37,28 @@
 
   <!-- ===== HOME / RADAR ===== -->
   <section class="page active" id="page-home">
+    <!-- Network Health Score -->
+    <div class="card health" id="healthCard">
+      <div class="health-ring">
+        <svg viewBox="0 0 120 120" id="healthSvg">
+          <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="10"/>
+          <circle cx="60" cy="60" r="52" fill="none" stroke="var(--signal)" stroke-width="10"
+                  stroke-linecap="round" id="healthArc" stroke-dasharray="327" stroke-dashoffset="327"
+                  transform="rotate(-90 60 60)"/>
+        </svg>
+        <div class="health-center"><div class="hs-grade" id="hsGrade">—</div><div class="hs-num" id="hsNum"></div></div>
+      </div>
+      <div class="health-info">
+        <div class="card-title" style="gap:8px"><span class="ic">📊</span><span data-t="healthScore">صحة الشبكة</span></div>
+        <div class="muted" id="healthMsg" data-t="healthEmpty">شغّل فحص سرعة لحساب درجة شبكتك.</div>
+        <button class="btn small primary" id="healthRun" data-t="runTest" style="margin-top:10px">افحص الآن</button>
+      </div>
+    </div>
+    <div class="card" id="recsCard" style="display:none">
+      <div class="card-title"><span class="ic">🛠️</span><span data-t="recs">توصيات لتحسين شبكتك</span></div>
+      <div id="recsList"></div>
+    </div>
+
     <div class="radar-wrap">
       <canvas id="radar" width="640" height="640"></canvas>
       <div class="radar-center">
@@ -84,8 +106,9 @@
       <div class="verdicts" id="verdicts"></div>
     </div>
     <button class="btn primary" id="speedBtn" data-t="start">ابدأ</button>
-    <div class="btn-row">
+    <div class="btn-row" style="justify-content:space-between">
       <button class="link-btn" id="shareBtn" style="color:var(--wave)">🔗 <span data-t="share">مشاركة النتيجة</span></button>
+      <button class="link-btn" id="reportBtn" style="color:var(--signal)"><span data-t="makeReport">🖼️ صورة تقرير</span></button>
     </div>
 
     <!-- Bufferbloat / latency-under-load -->
@@ -194,9 +217,25 @@
     <p class="footer-note"><span data-t="madeWith">صُنع بشغف</span> · Mawja © 2026</p>
   </section>
 
-  <nav class="nav">
+  <!-- ===== REACH (apps & games) ===== -->
+  <section class="page" id="page-reach">
+    <h2 data-t="reachTitle">سرعة وصولك للتطبيقات والألعاب</h2>
+    <p class="muted" data-t="reachHint"></p>
+    <button class="btn primary" id="reachBtn" data-t="runReach">افحص الوصول</button>
+    <div class="card" id="appsCard" style="display:none">
+      <div class="card-title"><span class="ic">📱</span><span data-t="catApps">تطبيقات وتواصل</span></div>
+      <div id="appsList"></div>
+    </div>
+    <div class="card" id="gamesCard" style="display:none">
+      <div class="card-title"><span class="ic">🎮</span><span data-t="catGames">ألعاب</span></div>
+      <div id="gamesList"></div>
+    </div>
+  </section>
+
+  <nav class="nav nav5">
     <button data-page="home" class="active"><span class="ic">📡</span><span data-t="home">الرئيسية</span></button>
     <button data-page="speed"><span class="ic">⚡</span><span data-t="speedTest">السرعة</span></button>
+    <button data-page="reach"><span class="ic">🎮</span><span data-t="reach">الوصول</span></button>
     <button data-page="place"><span class="ic">🧭</span><span data-t="placement">أفضل موقع</span></button>
     <button data-page="opt"><span class="ic">✨</span><span data-t="optimizer">المُحسِّن</span></button>
   </nav>

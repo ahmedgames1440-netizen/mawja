@@ -265,7 +265,67 @@ const Engine = (() => {
     };
   }
 
+  // ---- Reachability / response time to popular apps & game servers ----
+  // Uses image-load timing (not CORS-restricted): the browser completes the
+  // full DNS+TCP+TLS+HTTP round-trip and fires load/error either way, so the
+  // elapsed time is a real "how fast does this service respond for me" figure.
+  const reachServices = [
+    { name: "WhatsApp",    icon: "💬", cat: "apps",  url: "https://static.whatsapp.net/favicon.ico" },
+    { name: "YouTube",     icon: "▶️", cat: "apps",  url: "https://www.youtube.com/favicon.ico" },
+    { name: "Instagram",   icon: "📷", cat: "apps",  url: "https://www.instagram.com/favicon.ico" },
+    { name: "TikTok",      icon: "🎵", cat: "apps",  url: "https://www.tiktok.com/favicon.ico" },
+    { name: "Snapchat",    icon: "👻", cat: "apps",  url: "https://www.snapchat.com/favicon.ico" },
+    { name: "X",           icon: "𝕏", cat: "apps",  url: "https://abs.twimg.com/favicon.ico" },
+    { name: "Google",      icon: "🔍", cat: "apps",  url: "https://www.google.com/favicon.ico" },
+    { name: "Steam",       icon: "🎮", cat: "games", url: "https://store.steampowered.com/favicon.ico" },
+    { name: "PlayStation", icon: "🎮", cat: "games", url: "https://www.playstation.com/favicon.ico" },
+    { name: "Xbox",        icon: "🎮", cat: "games", url: "https://www.xbox.com/favicon.ico" },
+    { name: "Discord",     icon: "💬", cat: "games", url: "https://discord.com/assets/favicon.ico" },
+    { name: "Riot Games",  icon: "🎯", cat: "games", url: "https://www.riotgames.com/favicon.ico" },
+  ];
+  function reachOnce(url, timeout = 4000) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const t = now();
+      let done = false;
+      const fin = (ok) => { if (done) return; done = true; clearTimeout(to); resolve(ok ? now() - t : -1); };
+      const to = setTimeout(() => fin(false), timeout);
+      img.onload = () => fin(true);
+      img.onerror = () => fin(true); // a response (even 404) = server reached
+      img.src = url + (url.includes("?") ? "&" : "?") + "_=" + Math.random();
+    });
+  }
+  async function reachMeasure(svc) {
+    await reachOnce(svc.url);                 // warm the connection (ignored)
+    const a = await reachOnce(svc.url), b = await reachOnce(svc.url);
+    const vals = [a, b].filter((v) => v > 0);
+    return { ...svc, ms: vals.length ? Math.min(...vals) : -1 };
+  }
+
+  // ---- Network Health Score (0..100 + letter grade + tips) ----
+  function healthScore(d) {
+    // d: {down, up, ping, jit, grade(bufferbloat A-F), plan}
+    const gradeMap = { A: 100, B: 80, C: 60, D: 35, F: 10 };
+    const speedRef = d.plan && d.plan > 0 ? d.plan : 100;
+    const parts = {
+      speed:   clamp((d.down || 0) / speedRef * 100, 0, 100),
+      latency: clamp(100 - ((d.ping || 300) - 10) / 2, 0, 100),
+      bloat:   gradeMap[d.grade] != null ? gradeMap[d.grade] : 50,
+      jitter:  clamp(100 - (d.jit || 50) * 3, 0, 100),
+    };
+    const score = Math.round(
+      parts.speed * 0.30 + parts.latency * 0.25 + parts.bloat * 0.25 + parts.jitter * 0.20
+    );
+    const grade = score >= 90 ? "A+" : score >= 80 ? "A" : score >= 70 ? "B"
+                : score >= 55 ? "C" : score >= 40 ? "D" : "F";
+    // weakest areas → tips
+    const order = Object.entries(parts).sort((a, b) => a[1] - b[1]);
+    const tips = order.filter(([, v]) => v < 70).slice(0, 2).map(([k]) => k);
+    return { score, grade, parts, tips };
+  }
+
   return { ping, jitter, pingSample, download, upload, dnsRace, connectionInfo,
            scoreSpot, verdicts, clamp, latencyUnderLoad, bloatGrade,
-           connectionIntel, stabilityMonitor };
+           connectionIntel, stabilityMonitor,
+           reachServices, reachOnce, reachMeasure, healthScore };
 })();

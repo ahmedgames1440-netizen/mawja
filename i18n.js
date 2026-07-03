@@ -86,6 +86,31 @@ const I18N = {
   packetLoss:   { ar: "فقد الحزم", en: "Packet loss" },
   avg:          { ar: "متوسط", en: "Avg" },
   save:         { ar: "حفظ", en: "Save" },
+  // ---- health score ----
+  healthScore:  { ar: "صحة الشبكة", en: "Network health" },
+  healthEmpty:  { ar: "شغّل فحص سرعة لحساب درجة شبكتك.", en: "Run a speed test to score your network." },
+  runTest:      { ar: "افحص الآن", en: "Test now" },
+  recs:         { ar: "توصيات لتحسين شبكتك", en: "How to improve" },
+  recSpeed:     { ar: "سرعتك أقل من المتوقع — قرّب الجهاز من المودم أو راجع اشتراكك مع المزوّد.",
+                  en: "Speed is below expected — move closer to the modem or check your plan with the ISP." },
+  recLatency:   { ar: "بنقك مرتفع — استخدم كيبل، أو بدّل قناة الراوتر، أو جرّب DNS أسرع من تبويب المُحسِّن.",
+                  en: "High latency — use Ethernet, change the router channel, or pick a faster DNS in Optimizer." },
+  recBloat:     { ar: "Bufferbloat مرتفع — فعّل SQM/QoS في إعدادات الراوتر لتفادي التقطّع أثناء التحميل.",
+                  en: "High bufferbloat — enable SQM/QoS in your router to stop lag during downloads." },
+  recJitter:    { ar: "تذبذب عالٍ — ابتعد عن مصادر التشويش (مايكروويف/بلوتوث) أو استخدم 5GHz.",
+                  en: "High jitter — avoid interference (microwave/Bluetooth) or use 5GHz." },
+  // ---- reach / apps ----
+  reach:        { ar: "الوصول", en: "Reach" },
+  reachTitle:   { ar: "سرعة وصولك للتطبيقات والألعاب", en: "Reach to apps & games" },
+  reachHint:    { ar: "زمن استجابة الخوادم من موقعك — الأقل أسرع. يكشف أي خدمة ستكون سلسة عندك.",
+                  en: "Server response time from your location — lower is faster. Shows which services feel snappy." },
+  runReach:     { ar: "افحص الوصول", en: "Test reach" },
+  catApps:      { ar: "تطبيقات وتواصل", en: "Apps & social" },
+  catGames:     { ar: "ألعاب", en: "Gaming" },
+  // ---- report ----
+  report:       { ar: "تقرير قابل للمشاركة", en: "Shareable report" },
+  makeReport:   { ar: "🖼️ صورة تقرير", en: "🖼️ Report image" },
+  reportSaved:  { ar: "حُفظت صورة التقرير", en: "Report image saved" },
 };
 
 const Lang = {
