@@ -374,6 +374,7 @@
     renderHealth();
     if (twData) renderTowers();
     if (wzResult) renderWizard();
+    renderProfiles();
     if (intelLoaded) loadIntel();
     $("#radarQual").textContent = pulsing ? Lang.t("liveMonitor") : ($("#radarPct").textContent === "—" ? Lang.t("tapToStart") : qualityLabel(parseFloat($("#radarPct").textContent)));
     pulseBtn.textContent = pulsing ? Lang.t("pulseStop") : Lang.t("livePulse");
@@ -554,12 +555,20 @@
 
   function sigColor(pct) { return pct >= 65 ? "var(--signal)" : pct >= 40 ? "var(--warn)" : "var(--danger)"; }
 
+  let twFilter = "all";
+  $$(".tw-filter").forEach((b) => b.addEventListener("click", () => {
+    twFilter = b.dataset.twf;
+    $$(".tw-filter").forEach((x) => x.classList.toggle("active", x === b));
+    renderTowers();
+  }));
+
   function renderTowers() {
     if (!twData) return;
     drawTowerMap(twData, lockedTower);
     $("#twPos").textContent = (twData.pos.src === "gps" ? Lang.t("posGps") : Lang.t("posIp")) +
       ` · ${twData.pos.lat.toFixed(3)}, ${twData.pos.lon.toFixed(3)}`;
-    $("#towersList").innerHTML = twData.towers.map((t) => {
+    const shown = twData.towers.filter((t) => twFilter === "all" || t.gen === twFilter);
+    $("#towersList").innerHTML = shown.map((t) => {
       const isLock = lockedTower && lockedTower.id === t.id;
       return `<div class="tw-row${isLock ? " locked" : ""}">
         <span class="tw-dot" style="background:${t.color}"></span>
@@ -571,22 +580,46 @@
           <div class="tw-rsrp" style="color:${sigColor(t.pct)}">${t.rsrp} dBm</div>
           <div class="tw-sub">${t.pct}%</div>
         </div>
-        <button class="tw-lockbtn${isLock ? " on" : ""}" data-lock="${t.id}">${isLock ? Lang.t("locked") : Lang.t("lock")}</button>
+        <button class="tw-lockbtn${isLock ? " on" : ""}" data-lock="${t.id}">${isLock ? Lang.t("connected") : Lang.t("connect")}</button>
       </div>`;
     }).join("");
     $$("#towersList [data-lock]").forEach((b) =>
       b.addEventListener("click", () => lockTower(+b.dataset.lock)));
   }
 
-  function lockTower(id) {
+  let connBusy = false;
+  const CONN_PH = { baseline: "baseline", negotiate: "negotiating", verify: "verifying" };
+  async function lockTower(id) {
+    if (connBusy) return;
     const t = twData.towers.find((x) => x.id === id);
     if (!t) return;
     if (lockedTower && lockedTower.id === id) return unlockTower();
     if (lockMon) lockMon.stop();
+    connBusy = true;
     lockedTower = t;
     $("#lockCard").style.display = "block";
     $("#lockName").textContent = `${t.op} · ${t.gen}`;
     $("#lkBand").textContent = t.band;
+    $("#connGain").style.display = "none";
+    const prog = $("#connProgress");
+    prog.style.display = "flex";
+    renderTowers();
+    $("#lockCard").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    // real connection negotiation: before/after latency
+    let res = null;
+    try {
+      res = await Engine.towerConnect(t, (ph) =>
+        prog.innerHTML = `<span class="spin" style="border-top-color:var(--warn)"></span> ${Lang.t(CONN_PH[ph] || ph)}`);
+    } catch (_) {}
+    prog.style.display = "none";
+    if (res && res.before > 0 && res.after > 0) {
+      $("#connGain").style.display = "flex";
+      $("#connGain").innerHTML =
+        `<span class="cg-before">${res.before.toFixed(0)} ${Lang.t("ms")}</span>
+         <span class="cg-after">${res.after.toFixed(0)} ${Lang.t("ms")}</span>
+         <span class="cg-badge">${res.gain > 0 ? `⚡ ${res.gain}% ${Lang.t("boostFaster")}` : "✓"}</span>`;
+    }
+    // live monitor keeps running after connect
     lockMon = Engine.towerLockMonitor(t, (s) => {
       $("#lkRsrp").textContent = `${s.rsrp}`;
       $("#lkPct").textContent = `${s.pct}%`;
@@ -594,8 +627,7 @@
       $("#lkBar").style.width = `${s.pct}%`;
     });
     lockMon.start();
-    renderTowers();
-    $("#lockCard").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    connBusy = false;
   }
   function unlockTower() {
     if (lockMon) lockMon.stop();
@@ -604,7 +636,12 @@
     renderTowers();
   }
   $("#unlockBtn").addEventListener("click", unlockTower);
-  $("#lockBestBtn").addEventListener("click", () => { if (twData) lockTower(twData.towers[0].id); });
+  function bestOf(gen) {
+    const list = twData ? twData.towers.filter((t) => t.gen === gen) : [];
+    return list.length ? list[0] : null;
+  }
+  $("#best5gBtn").addEventListener("click", () => { const t = bestOf("5G"); if (t) lockTower(t.id); });
+  $("#best4gBtn").addEventListener("click", () => { const t = bestOf("4G"); if (t) lockTower(t.id); });
 
   let scanningTw = false;
   $("#towersBtn").addEventListener("click", async () => {
@@ -650,19 +687,88 @@
   }
 
   let wizardBusy = false;
+  const WZ_PH = { ping: "phPing", bloat: "phBloat", dns: "phDns" };
+  async function diagnose(phaseEl) {
+    return Engine.routerDiagnose((p) =>
+      phaseEl.innerHTML = `<span class="spin" style="border-top-color:var(--warn)"></span> ${Lang.t(WZ_PH[p] || p)}`);
+  }
   $("#wizardBtn").addEventListener("click", async () => {
     if (wizardBusy) return; wizardBusy = true;
     const btn = $("#wizardBtn"), ph = $("#wizardPhase");
     btn.disabled = true; ph.style.display = "flex";
-    const PH = { ping: "phPing", bloat: "phBloat", dns: "phDns" };
     try {
-      wzResult = await Engine.routerDiagnose((p) =>
-        ph.innerHTML = `<span class="spin" style="border-top-color:var(--warn)"></span> ${Lang.t(PH[p] || p)}`);
+      wzResult = await diagnose(ph);
+      // keep the FIRST score as the before/after baseline
+      if (!localStorage.getItem("mawja_rt_base"))
+        localStorage.setItem("mawja_rt_base", String(wzResult.score));
       renderWizard();
     } finally {
       ph.style.display = "none";
       btn.disabled = false; btn.textContent = Lang.t("rerunWizard");
       wizardBusy = false;
+    }
+  });
+
+  // measure real improvement vs the first diagnosis
+  $("#gainBtn").addEventListener("click", async () => {
+    if (wizardBusy) return; wizardBusy = true;
+    const btn = $("#gainBtn"), ph = $("#wizardPhase");
+    btn.disabled = true; ph.style.display = "flex";
+    try {
+      const base = parseInt(localStorage.getItem("mawja_rt_base") || "0", 10) || (wzResult ? wzResult.score : 0);
+      const r = await diagnose(ph);
+      wzResult = r; renderWizard();
+      $("#gainResult").style.display = "block";
+      $("#gnBefore").textContent = base;
+      const col = r.score > base ? "var(--signal)" : "var(--warn)";
+      const gn = $("#gnAfter"); gn.textContent = r.score; gn.style.color = col;
+      const v = $("#gnVerdict");
+      if (r.score > base + 2) { v.textContent = `+${r.score - base} · ${Lang.t("improved")}`; v.style.color = "var(--signal)"; }
+      else { v.textContent = Lang.t("noChange"); v.style.color = "var(--warn)"; }
+    } finally {
+      ph.style.display = "none"; btn.disabled = false; wizardBusy = false;
+    }
+  });
+
+  // ---------- Router presets ----------
+  let curProf = "gaming";
+  function renderProfiles() {
+    $("#profList").innerHTML = Engine.routerProfiles[curProf].map((k) =>
+      `<div class="tip"><span class="dot">•</span><span>${Lang.t(k)}</span></div>`).join("");
+  }
+  $$(".prof-tab").forEach((b) => b.addEventListener("click", () => {
+    curProf = b.dataset.prof;
+    $$(".prof-tab").forEach((x) => x.classList.toggle("active", x === b));
+    renderProfiles();
+  }));
+  renderProfiles();
+
+  // ---------- Connection Boost ----------
+  let boostBusy = false;
+  const BO_PH = { measure: "boostMeasure", warm: "boostWarm", verify: "boostVerify", done: "boostDone" };
+  $("#boostBtn").addEventListener("click", async () => {
+    if (boostBusy) return; boostBusy = true;
+    const btn = $("#boostBtn"), bar = $("#boostBar"), fill = $("#boostFill"), ph = $("#boostPhase");
+    btn.disabled = true; btn.textContent = Lang.t("boosting");
+    bar.style.display = "block"; ph.style.display = "block"; fill.style.width = "0%";
+    $("#boostResult").style.display = "none";
+    try {
+      const r = await Engine.connectionBoost((step, pct) => {
+        fill.style.width = `${pct}%`;
+        ph.textContent = Lang.t(BO_PH[step] || step);
+      });
+      $("#boostResult").style.display = "block";
+      $("#boBefore").textContent = r.before > 0 ? `${r.before.toFixed(0)} ${Lang.t("ms")}` : "—";
+      $("#boAfter").textContent = r.after > 0 ? `${r.after.toFixed(0)} ${Lang.t("ms")}` : "—";
+      $("#boGain").textContent = r.gain > 0 ? `⚡ ${r.gain}%` : "✨";
+      $("#boMsg").textContent = r.gain > 0
+        ? (Lang.isAr() ? `استجابة خدماتك صارت أسرع بنسبة ${r.gain}% (اتصالات دافئة لـ${r.hosts} خدمات)` :
+                         `Your services now respond ${r.gain}% faster (warm connections to ${r.hosts} services)`)
+        : Lang.t("boostNoGain");
+    } finally {
+      bar.style.display = "none"; ph.style.display = "none";
+      btn.disabled = false; btn.textContent = Lang.t("boost");
+      boostBusy = false;
     }
   });
 

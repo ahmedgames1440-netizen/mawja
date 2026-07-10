@@ -447,9 +447,72 @@ const Engine = (() => {
     return { ping: p, jitter: j, bloat, dns: fastest || null, items, score };
   }
 
+  // ================= CONNECTION BOOST =================
+  // REAL technique: browsers keep TCP/TLS connections alive after first use,
+  // so pre-warming connections to the services you use genuinely cuts the
+  // latency of the next requests (DNS + handshake already done). We measure
+  // before (cold) and after (warm) so the gain shown is real.
+  const boostHosts = [
+    "https://speed.cloudflare.com/__down?bytes=0",
+    "https://www.google.com/favicon.ico",
+    "https://www.youtube.com/favicon.ico",
+    "https://static.whatsapp.net/favicon.ico",
+    "https://www.instagram.com/favicon.ico",
+    "https://www.tiktok.com/favicon.ico",
+    "https://www.snapchat.com/favicon.ico",
+    "https://discord.com/assets/favicon.ico",
+  ];
+  async function connectionBoost(onStep) {
+    const probes = boostHosts.slice(1, 5); // measured subset (cold vs warm)
+    onStep && onStep("measure", 0);
+    const before = [];
+    for (const u of probes) { const v = await reachOnce(u); if (v > 0) before.push(v); }
+    const beforeMs = before.length ? before.reduce((a, b) => a + b, 0) / before.length : 0;
+    // warm every host twice, in parallel waves
+    onStep && onStep("warm", 30);
+    await Promise.all(boostHosts.map((u) => reachOnce(u)));
+    onStep && onStep("warm", 65);
+    await Promise.all(boostHosts.map((u) => reachOnce(u)));
+    onStep && onStep("verify", 85);
+    const after = [];
+    for (const u of probes) { const v = await reachOnce(u); if (v > 0) after.push(v); }
+    const afterMs = after.length ? after.reduce((a, b) => a + b, 0) / after.length : 0;
+    onStep && onStep("done", 100);
+    const gain = beforeMs > 0 && afterMs > 0 ? Math.max(0, Math.round((1 - afterMs / beforeMs) * 100)) : 0;
+    return { before: beforeMs, after: afterMs, gain, hosts: boostHosts.length };
+  }
+
+  // ---- tower connect: negotiation with REAL before/after latency ----
+  async function towerConnect(tower, onPhase) {
+    onPhase && onPhase("baseline");
+    const before = await ping(3);
+    onPhase && onPhase("negotiate");
+    // real warm-up toward the edge + big CDNs (improves subsequent latency)
+    await Promise.all([
+      reachOnce("https://speed.cloudflare.com/__down?bytes=0"),
+      reachOnce("https://www.google.com/favicon.ico"),
+    ]);
+    await Promise.all([
+      reachOnce("https://speed.cloudflare.com/__down?bytes=0"),
+      reachOnce("https://www.youtube.com/favicon.ico"),
+    ]);
+    onPhase && onPhase("verify");
+    const after = await ping(3);
+    const gain = before > 0 && after > 0 ? Math.max(0, Math.round((1 - after / before) * 100)) : 0;
+    return { before, after, gain };
+  }
+
+  // ---- router profiles: tailored settings per use case ----
+  const routerProfiles = {
+    gaming:    ["rpQosGame", "rpEthernet", "rp5ghz", "rpChannel", "rpDmzNo"],
+    streaming: ["rpQosStream", "rp5ghz", "rpPlacement", "rpBand40"],
+    calls:     ["rpQosCalls", "rpChannel", "rpInterference", "rpReboot"],
+  };
+
   return { ping, jitter, pingSample, download, upload, dnsRace, connectionInfo,
            scoreSpot, verdicts, clamp, latencyUnderLoad, bloatGrade,
            connectionIntel, stabilityMonitor,
            reachServices, reachOnce, reachMeasure, healthScore,
-           locate, towerScan, towerLockMonitor, routerDiagnose };
+           locate, towerScan, towerLockMonitor, routerDiagnose,
+           connectionBoost, towerConnect, routerProfiles };
 })();

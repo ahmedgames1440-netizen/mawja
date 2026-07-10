@@ -252,6 +252,44 @@ dialog input{
 .tw-lockbtn{border:1.5px solid var(--wave);background:transparent;color:var(--wave);font-weight:800;font-size:12px;border-radius:10px;padding:7px 12px;cursor:pointer;flex:0 0 auto}
 .tw-lockbtn.on{background:var(--signal);border-color:var(--signal);color:#04120c}
 
+/* ---- Boost ---- */
+.btn.boost{
+  background:linear-gradient(90deg,#00E5A0,#37B6FF);color:#04120c;
+  box-shadow:0 6px 24px rgba(0,229,160,.25)
+}
+.boost-bar{height:10px;border-radius:6px;background:rgba(255,255,255,.07);overflow:hidden;margin-top:12px}
+.boost-fill{height:100%;width:0%;border-radius:6px;background:linear-gradient(90deg,#37B6FF,#00E5A0);transition:width .5s}
+.boost-phase{color:var(--warn);font-weight:700;font-size:13px;margin-top:8px;text-align:center}
+.boost-row{display:flex;align-items:center;gap:14px}
+.boost-cell{text-align:center}
+.bo-v{font-weight:800;font-size:26px;font-variant-numeric:tabular-nums}
+.bo-l{color:var(--ink-dim);font-size:11px}
+.boost-arrow{color:var(--ink-dim);font-size:20px}
+body[dir="ltr"] .boost-arrow{transform:scaleX(-1)}
+.boost-badge{margin-inline-start:auto;background:rgba(0,229,160,.15);color:var(--signal);font-weight:800;font-size:20px;padding:10px 16px;border-radius:16px}
+
+/* ---- Tower filters & connect ---- */
+.tw-filters{display:flex;gap:8px;margin-bottom:8px}
+.tw-filter{
+  flex:1;border:1px solid var(--card-border);background:rgba(255,255,255,.04);color:var(--ink-dim);
+  font-weight:800;font-size:13px;padding:9px 0;border-radius:12px;cursor:pointer;font-family:inherit
+}
+.tw-filter.active{background:rgba(0,229,160,.14);border-color:rgba(0,229,160,.4);color:var(--signal)}
+.btn.g5btn{background:var(--signal);color:#04120c}
+.conn-progress{display:flex;align-items:center;gap:10px;color:var(--warn);font-weight:700;font-size:13px;margin-top:12px}
+.conn-gain{margin-top:12px;display:flex;align-items:center;gap:12px;font-weight:800}
+.conn-gain .cg-before{color:var(--ink-dim);text-decoration:line-through}
+.conn-gain .cg-after{color:var(--signal);font-size:20px}
+.conn-gain .cg-badge{margin-inline-start:auto;background:rgba(0,229,160,.15);color:var(--signal);padding:6px 12px;border-radius:12px;font-size:14px}
+
+/* ---- Router profiles ---- */
+.prof-tabs{display:flex;gap:8px;margin:12px 0 4px}
+.prof-tab{
+  flex:1;border:1px solid var(--card-border);background:rgba(255,255,255,.04);color:var(--ink-dim);
+  font-weight:700;font-size:12px;padding:10px 4px;border-radius:12px;cursor:pointer;font-family:inherit
+}
+.prof-tab.active{background:rgba(55,182,255,.14);border-color:rgba(55,182,255,.4);color:var(--wave)}
+
 /* ---- Router wizard ---- */
 .wz-phase{display:flex;align-items:center;gap:10px;color:var(--warn);font-weight:700;font-size:13px;margin-top:12px}
 .wz-scores{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;margin:14px 0 6px}

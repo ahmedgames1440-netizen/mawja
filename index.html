@@ -74,6 +74,20 @@
       <div class="stat"><span class="ic">⬇️</span><div><div class="l" data-t="estDown">سرعة تقديرية</div><div class="v" id="stDown">—</div></div></div>
       <div class="stat"><span class="ic">📈</span><div><div class="l" data-t="jitter">التذبذب</div><div class="v" id="stJitter">—</div></div></div>
     </div>
+    <button class="btn boost" id="boostBtn" data-t="boost">🚀 تقوية الاتصال</button>
+    <div class="boost-bar" id="boostBar" style="display:none"><div class="boost-fill" id="boostFill"></div></div>
+    <div class="boost-phase" id="boostPhase" style="display:none"></div>
+    <div class="card tint-signal" id="boostResult" style="display:none">
+      <div class="boost-row">
+        <div class="boost-cell"><div class="bo-v" id="boBefore">—</div><div class="bo-l" data-t="before">قبل</div></div>
+        <div class="boost-arrow">←</div>
+        <div class="boost-cell"><div class="bo-v" id="boAfter" style="color:var(--signal)">—</div><div class="bo-l" data-t="after">بعد</div></div>
+        <div class="boost-badge" id="boGain">—</div>
+      </div>
+      <div class="muted" id="boMsg" style="margin-top:8px;font-size:12px"></div>
+    </div>
+    <p class="footer-note" data-t="boostHint" style="margin-top:10px"></p>
+
     <button class="btn primary" id="pulseBtn" data-t="livePulse">🔴 نبض حيّ</button>
     <div class="card" id="liveCard" style="display:none">
       <div class="card-title"><span class="ic">📈</span><span data-t="liveMonitor">مراقبة حيّة</span></div>
@@ -204,7 +218,27 @@
           <div class="wz-score"><div class="wz-num" id="wzDone" style="color:var(--wave)">0</div><div class="wz-lbl" data-t="stepsDone">خطوة منجزة</div></div>
         </div>
         <div id="wizardSteps"></div>
+        <button class="btn outline small" id="gainBtn" data-t="measureGain" style="width:100%">📏 قِس التحسّن الآن</button>
+        <div id="gainResult" style="display:none;margin-top:12px">
+          <div class="wz-scores" style="grid-template-columns:1fr 1fr">
+            <div class="wz-score"><div class="wz-num" id="gnBefore" style="color:var(--ink-dim)">—</div><div class="wz-lbl" data-t="scoreBefore">الدرجة قبل</div></div>
+            <div class="wz-score"><div class="wz-num" id="gnAfter">—</div><div class="wz-lbl" data-t="scoreAfter">الدرجة الآن</div></div>
+          </div>
+          <div class="bl-verdict" id="gnVerdict" style="text-align:center"></div>
+        </div>
       </div>
+    </div>
+
+    <!-- Router presets -->
+    <div class="card">
+      <div class="card-title"><span class="ic">🎛️</span><span data-t="profiles">أوضاع جاهزة للراوتر</span></div>
+      <p class="muted" data-t="profilesHint"></p>
+      <div class="prof-tabs">
+        <button class="prof-tab active" data-prof="gaming" data-t="pGaming">🎮 ألعاب</button>
+        <button class="prof-tab" data-prof="streaming" data-t="pStreaming">🎬 بث ومشاهدة</button>
+        <button class="prof-tab" data-prof="calls" data-t="pCalls">🎧 مكالمات واجتماعات</button>
+      </div>
+      <div id="profList"></div>
     </div>
 
     <div class="card">
@@ -260,7 +294,10 @@
         <div class="tw-map-wrap">
           <canvas id="twMap" width="640" height="640"></canvas>
         </div>
-        <button class="btn wave small" id="lockBestBtn" data-t="lockBest" style="width:100%">📌 ثبّت على أفضل برج</button>
+        <div class="btn-row">
+          <button class="btn small g5btn" id="best5gBtn" data-t="connectBest5g" style="flex:1">⚡ اتصل بأفضل 5G</button>
+          <button class="btn wave small" id="best4gBtn" data-t="connectBest4g" style="flex:1">📶 اتصل بأفضل 4G</button>
+        </div>
       </div>
 
       <!-- locked tower live card -->
@@ -275,9 +312,16 @@
           <div class="m"><div class="mv" id="lkBand" style="color:var(--ink-dim);font-size:13px">—</div><div class="ml" data-t="band">النطاق</div></div>
         </div>
         <div class="bar-track" style="margin-top:12px;height:10px"><div class="bar-fill" id="lkBar" style="width:0%"></div></div>
+        <div class="conn-progress" id="connProgress" style="display:none"></div>
+        <div class="conn-gain" id="connGain" style="display:none"></div>
       </div>
 
       <div class="card" id="towersListCard">
+        <div class="tw-filters">
+          <button class="tw-filter active" data-twf="all" data-t="all">الكل</button>
+          <button class="tw-filter" data-twf="5G">5G</button>
+          <button class="tw-filter" data-twf="4G">4G</button>
+        </div>
         <div id="towersList"></div>
       </div>
       <p class="footer-note" data-t="towersNote"></p>
