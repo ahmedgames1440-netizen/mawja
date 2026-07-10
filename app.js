@@ -372,6 +372,8 @@
     renderTips(); renderHistory(); renderSpots();
     if (last) { if (last.bloat != null) renderBloat({ idle: last.ping, loaded: last.ping + last.bloat, bloat: last.bloat, grade: last.grade }); renderPlan(last.down); }
     renderHealth();
+    if (twData) renderTowers();
+    if (wzResult) renderWizard();
     if (intelLoaded) loadIntel();
     $("#radarQual").textContent = pulsing ? Lang.t("liveMonitor") : ($("#radarPct").textContent === "—" ? Lang.t("tapToStart") : qualityLabel(parseFloat($("#radarPct").textContent)));
     pulseBtn.textContent = pulsing ? Lang.t("pulseStop") : Lang.t("livePulse");
@@ -512,6 +514,157 @@
     ctx.arcTo(x0, y0 + h, x0, y0, r); ctx.arcTo(x0, y0, x0 + w, y0, r); ctx.closePath();
   }
   $("#reportBtn").addEventListener("click", makeReport);
+
+  // ---------- Towers ----------
+  let twData = null, lockedTower = null, lockMon = null;
+
+  function drawTowerMap(data, locked) {
+    const cv = $("#twMap"), c = cv.getContext("2d");
+    const w = cv.width, h = cv.height, cx = w / 2, cy = h / 2, R = w / 2 - 20;
+    c.clearRect(0, 0, w, h);
+    // rings
+    c.strokeStyle = "rgba(255,255,255,.08)"; c.lineWidth = 2;
+    for (let i = 1; i <= 3; i++) { c.beginPath(); c.arc(cx, cy, R * i / 3, 0, 7); c.stroke(); }
+    // ring distance labels (3.5km max)
+    c.fillStyle = "rgba(255,255,255,.28)"; c.font = "500 20px sans-serif"; c.textAlign = "center";
+    [1.2, 2.3, 3.5].forEach((km, i) => c.fillText(`${km}`, cx, cy - R * (i + 1) / 3 + 26));
+    // towers
+    data.towers.forEach((t) => {
+      const r = (t.dist / 3.5) * R;
+      const a = (t.bearing - 90) * Math.PI / 180;
+      const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+      const isLock = locked && locked.id === t.id;
+      if (isLock) { // pulse ring for the locked tower
+        c.strokeStyle = "#00E5A0"; c.lineWidth = 3;
+        c.beginPath(); c.arc(x, y, 26, 0, 7); c.stroke();
+      }
+      c.fillStyle = t.color;
+      c.beginPath(); c.arc(x, y, isLock ? 14 : 10, 0, 7); c.fill();
+      c.fillStyle = "rgba(255,255,255,.85)"; c.font = "700 17px sans-serif";
+      c.fillText(t.gen, x, y - 18);
+    });
+    // you
+    c.fillStyle = "#37B6FF";
+    c.beginPath(); c.arc(cx, cy, 11, 0, 7); c.fill();
+    c.strokeStyle = "rgba(55,182,255,.4)"; c.lineWidth = 5;
+    c.beginPath(); c.arc(cx, cy, 19, 0, 7); c.stroke();
+    c.fillStyle = "#EAF2FF"; c.font = "700 18px sans-serif";
+    c.fillText(Lang.t("yourPos"), cx, cy + 42);
+  }
+
+  function sigColor(pct) { return pct >= 65 ? "var(--signal)" : pct >= 40 ? "var(--warn)" : "var(--danger)"; }
+
+  function renderTowers() {
+    if (!twData) return;
+    drawTowerMap(twData, lockedTower);
+    $("#twPos").textContent = (twData.pos.src === "gps" ? Lang.t("posGps") : Lang.t("posIp")) +
+      ` · ${twData.pos.lat.toFixed(3)}, ${twData.pos.lon.toFixed(3)}`;
+    $("#towersList").innerHTML = twData.towers.map((t) => {
+      const isLock = lockedTower && lockedTower.id === t.id;
+      return `<div class="tw-row${isLock ? " locked" : ""}">
+        <span class="tw-dot" style="background:${t.color}"></span>
+        <div class="tw-info">
+          <div class="tw-name">${esc(t.op)} <span class="tw-gen${t.gen === "5G" ? " g5" : ""}">${t.gen}</span>${t.rank === 1 ? " 🏆" : ""}</div>
+          <div class="tw-sub">${t.band} · ${Lang.t("distance")}: ${t.dist} ${Lang.t("km")}</div>
+        </div>
+        <div class="tw-sig">
+          <div class="tw-rsrp" style="color:${sigColor(t.pct)}">${t.rsrp} dBm</div>
+          <div class="tw-sub">${t.pct}%</div>
+        </div>
+        <button class="tw-lockbtn${isLock ? " on" : ""}" data-lock="${t.id}">${isLock ? Lang.t("locked") : Lang.t("lock")}</button>
+      </div>`;
+    }).join("");
+    $$("#towersList [data-lock]").forEach((b) =>
+      b.addEventListener("click", () => lockTower(+b.dataset.lock)));
+  }
+
+  function lockTower(id) {
+    const t = twData.towers.find((x) => x.id === id);
+    if (!t) return;
+    if (lockedTower && lockedTower.id === id) return unlockTower();
+    if (lockMon) lockMon.stop();
+    lockedTower = t;
+    $("#lockCard").style.display = "block";
+    $("#lockName").textContent = `${t.op} · ${t.gen}`;
+    $("#lkBand").textContent = t.band;
+    lockMon = Engine.towerLockMonitor(t, (s) => {
+      $("#lkRsrp").textContent = `${s.rsrp}`;
+      $("#lkPct").textContent = `${s.pct}%`;
+      $("#lkPing").textContent = s.ok ? `${s.ping.toFixed(0)}` : "✕";
+      $("#lkBar").style.width = `${s.pct}%`;
+    });
+    lockMon.start();
+    renderTowers();
+    $("#lockCard").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+  function unlockTower() {
+    if (lockMon) lockMon.stop();
+    lockMon = null; lockedTower = null;
+    $("#lockCard").style.display = "none";
+    renderTowers();
+  }
+  $("#unlockBtn").addEventListener("click", unlockTower);
+  $("#lockBestBtn").addEventListener("click", () => { if (twData) lockTower(twData.towers[0].id); });
+
+  let scanningTw = false;
+  $("#towersBtn").addEventListener("click", async () => {
+    if (scanningTw) return; scanningTw = true;
+    const btn = $("#towersBtn");
+    btn.disabled = true; btn.innerHTML = `<span class="spin"></span> ${Lang.t("testing")}`;
+    unlockTower();
+    twData = await Engine.towerScan();
+    btn.disabled = false; btn.textContent = Lang.t("scanTowers"); scanningTw = false;
+    if (!twData) { toast(Lang.t("locFailed")); return; }
+    $("#towersResult").style.display = "block";
+    renderTowers();
+  });
+
+  // ---------- Router tune-up wizard ----------
+  let wzResult = null;
+  function getWzDone() { try { return JSON.parse(localStorage.getItem("mawja_rt_done") || "{}"); } catch { return {}; } }
+  function setWzDone(d) { localStorage.setItem("mawja_rt_done", JSON.stringify(d)); }
+
+  function renderWizard() {
+    if (!wzResult) return;
+    const done = getWzDone();
+    $("#wizardResult").style.display = "block";
+    const col = wzResult.score >= 75 ? "var(--signal)" : wzResult.score >= 50 ? "var(--warn)" : "var(--danger)";
+    const sc = $("#wzScore"); sc.textContent = wzResult.score; sc.style.color = col;
+    const remaining = wzResult.items.filter((i) => !done[i.key]).reduce((a, b) => a + b.gain, 0);
+    $("#wzGain").textContent = remaining > 0 ? `+${remaining * 4}%` : "🎉";
+    $("#wzDone").textContent = wzResult.items.filter((i) => done[i.key]).length;
+    $("#wizardSteps").innerHTML = wzResult.items.map((it) => {
+      const d = !!done[it.key];
+      const txt = Lang.t(it.key) + (it.extra ? ` <b style="color:var(--signal)">${esc(it.extra)}</b>` : "");
+      return `<div class="wz-step${d ? " done" : ""}" data-wz="${it.key}">
+        <span class="wz-check">${d ? "✓" : ""}</span>
+        <span class="wz-txt">${txt}</span>
+        <span class="wz-gain">+${it.gain * 4}%</span>
+      </div>`;
+    }).join("");
+    $$("#wizardSteps [data-wz]").forEach((el) =>
+      el.addEventListener("click", () => {
+        const d = getWzDone(); d[el.dataset.wz] = !d[el.dataset.wz];
+        setWzDone(d); renderWizard();
+      }));
+  }
+
+  let wizardBusy = false;
+  $("#wizardBtn").addEventListener("click", async () => {
+    if (wizardBusy) return; wizardBusy = true;
+    const btn = $("#wizardBtn"), ph = $("#wizardPhase");
+    btn.disabled = true; ph.style.display = "flex";
+    const PH = { ping: "phPing", bloat: "phBloat", dns: "phDns" };
+    try {
+      wzResult = await Engine.routerDiagnose((p) =>
+        ph.innerHTML = `<span class="spin" style="border-top-color:var(--warn)"></span> ${Lang.t(PH[p] || p)}`);
+      renderWizard();
+    } finally {
+      ph.style.display = "none";
+      btn.disabled = false; btn.textContent = Lang.t("rerunWizard");
+      wizardBusy = false;
+    }
+  });
 
   // ---------- toast ----------
   let toastEl;

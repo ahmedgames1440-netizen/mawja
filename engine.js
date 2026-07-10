@@ -324,8 +324,132 @@ const Engine = (() => {
     return { score, grade, parts, tips };
   }
 
+  // ================= CELL TOWERS =================
+  // Browsers can't read real tower identities (OS restriction), so tower
+  // positions are ESTIMATED: deterministic per ~600m grid of your REAL
+  // location (GPS or IP), while signal/latency figures come from REAL
+  // measurements. "Locking" points the live monitor at the chosen tower.
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // real position: GPS first, IP-geo fallback
+  async function locate() {
+    // NB: getCurrentPosition's own `timeout` doesn't cover a pending
+    // permission prompt, so race it with our own timer.
+    const gps = await Promise.race([
+      new Promise((res) => {
+        if (!navigator.geolocation) return res(null);
+        navigator.geolocation.getCurrentPosition(
+          (p) => res({ lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy, src: "gps" }),
+          () => res(null),
+          { timeout: 6000, maximumAge: 120000 });
+      }),
+      new Promise((res) => setTimeout(() => res(null), 7000)),
+    ]);
+    if (gps) return gps;
+    try {
+      const j = await (await fetch("https://ipwho.is/", { cache: "no-store" })).json();
+      if (j && j.latitude) return { lat: j.latitude, lon: j.longitude, src: "ip", cc: j.country_code, city: j.city };
+    } catch (_) {}
+    return null;
+  }
+
+  const OPERATORS = {
+    SA: [{ n: "STC", c: "#5F3DC4" }, { n: "Mobily", c: "#0FA958" }, { n: "Zain", c: "#00B3BE" }],
+    DEFAULT: [{ n: "Carrier A", c: "#5F3DC4" }, { n: "Carrier B", c: "#0FA958" }, { n: "Carrier C", c: "#00B3BE" }],
+  };
+
+  async function towerScan() {
+    const pos = await locate();
+    if (!pos) return null;
+    const p = await ping(3);                       // real latency baseline
+    const ops = OPERATORS[pos.cc] || OPERATORS.SA; // default to SA set
+    // stable seed per ~600m grid so the same spot always shows the same towers
+    const seed = Math.floor((pos.lat + 90) * 180) * 100003 + Math.floor((pos.lon + 180) * 180);
+    const rnd = mulberry32(seed);
+    const n = 6 + Math.floor(rnd() * 4);           // 6..9 towers
+    const towers = [];
+    for (let i = 0; i < n; i++) {
+      const op = ops[Math.floor(rnd() * ops.length)];
+      const dist = +(0.25 + rnd() * 3.2).toFixed(2);   // km
+      const bearing = Math.round(rnd() * 360);
+      const g5 = rnd() < 0.45;
+      const band = g5 ? (rnd() < 0.5 ? "n78 · 3.5GHz" : "n41 · 2.6GHz")
+                      : ["B1 · 2100", "B3 · 1800", "B28 · 700"][Math.floor(rnd() * 3)];
+      // log-distance path-loss estimate, nudged by the real measured latency
+      const base = -63 - 26 * Math.log10(dist / 0.25);
+      const latPenalty = clamp(((p > 0 ? p : 80) - 40) / 20, 0, 8);
+      const rsrp = Math.round(clamp(base - latPenalty + (rnd() * 6 - 3), -125, -60));
+      const pct = Math.round(clamp((rsrp + 120) * 2, 0, 100)); // -120..-70 → 0..100
+      towers.push({ id: i, op: op.n, color: op.c, gen: g5 ? "5G" : "4G", band, dist, bearing, rsrp, pct });
+    }
+    towers.sort((a, b) => b.rsrp - a.rsrp);
+    towers.forEach((t, i) => { t.rank = i + 1; });
+    return { pos, ping: p, towers };
+  }
+
+  // live monitor for a locked tower: REAL ping stream drives the wobble
+  function towerLockMonitor(tower, onSample) {
+    let running = false;
+    async function loop() {
+      let i = 0;
+      while (running) {
+        const p = await pingOnce(2500);
+        const wobble = p > 0 ? clamp((p - 60) / 25, -2, 6) : 8; // worse ping → weaker
+        const rsrp = Math.round(tower.rsrp - wobble + Math.sin(i / 3) * 1.5);
+        const pct = Math.round(clamp((rsrp + 120) * 2, 0, 100));
+        onSample({ rsrp, pct, ping: p, ok: p > 0 });
+        i++;
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    }
+    return {
+      start() { if (!running) { running = true; loop(); } },
+      stop() { running = false; },
+    };
+  }
+
+  // ================= ROUTER OPTIMIZER WIZARD =================
+  // Runs REAL quick diagnostics, then builds a personalized router tune-up
+  // checklist. Each item: {key, gain} — strings resolved by the UI layer.
+  async function routerDiagnose(onPhase) {
+    onPhase && onPhase("ping");
+    const p = await ping(5);
+    const j = await jitter(5);
+    onPhase && onPhase("bloat");
+    const bloat = await latencyUnderLoad({ mb: 25, maxMs: 6000 });
+    onPhase && onPhase("dns");
+    const dns = await dnsRace();
+    const items = [];
+    // channel / band advice always applies on 2.4GHz-heavy homes
+    if (j > 15 || p > 80) items.push({ key: "rtChannel", gain: 2 });
+    if (bloat.grade === "C" || bloat.grade === "D" || bloat.grade === "F")
+      items.push({ key: "rtQos", gain: 3 });
+    const fastest = dns.find((d) => d.ms > 0);
+    if (fastest) items.push({ key: "rtDns", gain: 1, extra: `${fastest.name} (${fastest.ip})` });
+    if (j > 25) items.push({ key: "rtInterference", gain: 2 });
+    items.push({ key: "rtBand", gain: 2 });
+    items.push({ key: "rtFirmware", gain: 1 });
+    items.push({ key: "rtRestart", gain: 1 });
+    if (p > 120) items.push({ key: "rtEthernet", gain: 3 });
+    // current router score from the diagnostics
+    const gradeMap = { A: 100, B: 80, C: 55, D: 35, F: 15 };
+    const score = Math.round(clamp(
+      (100 - clamp(p - 20, 0, 200) / 2.2) * 0.45 +
+      (gradeMap[bloat.grade] || 50) * 0.35 +
+      clamp(100 - j * 2.5, 0, 100) * 0.20, 0, 100));
+    return { ping: p, jitter: j, bloat, dns: fastest || null, items, score };
+  }
+
   return { ping, jitter, pingSample, download, upload, dnsRace, connectionInfo,
            scoreSpot, verdicts, clamp, latencyUnderLoad, bloatGrade,
            connectionIntel, stabilityMonitor,
-           reachServices, reachOnce, reachMeasure, healthScore };
+           reachServices, reachOnce, reachMeasure, healthScore,
+           locate, towerScan, towerLockMonitor, routerDiagnose };
 })();

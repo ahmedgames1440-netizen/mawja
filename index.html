@@ -191,6 +191,22 @@
       </div>
     </div>
 
+    <!-- Router tune-up wizard -->
+    <div class="card tint-wave">
+      <div class="card-title"><span class="ic">🪄</span><span data-t="routerTune">تحسين الراوتر</span></div>
+      <p class="muted" data-t="routerTuneHint"></p>
+      <button class="btn wave" id="wizardBtn" data-t="runWizard">🪄 شغّل معالج التحسين</button>
+      <div id="wizardPhase" class="wz-phase" style="display:none"></div>
+      <div id="wizardResult" style="display:none">
+        <div class="wz-scores">
+          <div class="wz-score"><div class="wz-num" id="wzScore">—</div><div class="wz-lbl" data-t="routerScore">درجة الراوتر</div></div>
+          <div class="wz-score"><div class="wz-num" id="wzGain" style="color:var(--signal)">—</div><div class="wz-lbl" data-t="potentialGain">تحسّن متوقع</div></div>
+          <div class="wz-score"><div class="wz-num" id="wzDone" style="color:var(--wave)">0</div><div class="wz-lbl" data-t="stepsDone">خطوة منجزة</div></div>
+        </div>
+        <div id="wizardSteps"></div>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-title"><span class="ic">🧭</span><span data-t="dnsTest">أسرع DNS لشبكتك</span></div>
       <p class="muted" data-t="dnsHint">يقيس زمن استجابة كل مزوّد DNS من موقعك. الأسرع = تصفّح أسرع.</p>
@@ -232,9 +248,46 @@
     </div>
   </section>
 
-  <nav class="nav nav5">
+  <!-- ===== TOWERS ===== -->
+  <section class="page" id="page-towers">
+    <h2 data-t="towersTitle">الأبراج القريبة منك</h2>
+    <p class="muted" data-t="towersHint"></p>
+    <button class="btn primary" id="towersBtn" data-t="scanTowers">افحص الأبراج</button>
+
+    <div id="towersResult" style="display:none">
+      <div class="card">
+        <div class="tw-pos" id="twPos"></div>
+        <div class="tw-map-wrap">
+          <canvas id="twMap" width="640" height="640"></canvas>
+        </div>
+        <button class="btn wave small" id="lockBestBtn" data-t="lockBest" style="width:100%">📌 ثبّت على أفضل برج</button>
+      </div>
+
+      <!-- locked tower live card -->
+      <div class="card tint-signal" id="lockCard" style="display:none">
+        <div class="card-title"><span class="ic">📌</span><span data-t="lockedOn">مثبَّت على</span>&nbsp;<span id="lockName" style="color:var(--signal)"></span>
+          <button class="icon-btn ghost" id="unlockBtn" style="margin-inline-start:auto;width:34px;height:34px;font-size:13px" aria-label="unlock">✕</button>
+        </div>
+        <div class="metrics" style="margin-top:12px">
+          <div class="m"><div class="mv" id="lkRsrp" style="color:var(--signal)">—</div><div class="ml">RSRP</div></div>
+          <div class="m"><div class="mv" id="lkPct" style="color:var(--wave)">—</div><div class="ml" data-t="liveSignal">إشارة حيّة</div></div>
+          <div class="m"><div class="mv" id="lkPing" style="color:var(--warn)">—</div><div class="ml" data-t="ping">بنق</div></div>
+          <div class="m"><div class="mv" id="lkBand" style="color:var(--ink-dim);font-size:13px">—</div><div class="ml" data-t="band">النطاق</div></div>
+        </div>
+        <div class="bar-track" style="margin-top:12px;height:10px"><div class="bar-fill" id="lkBar" style="width:0%"></div></div>
+      </div>
+
+      <div class="card" id="towersListCard">
+        <div id="towersList"></div>
+      </div>
+      <p class="footer-note" data-t="towersNote"></p>
+    </div>
+  </section>
+
+  <nav class="nav nav6">
     <button data-page="home" class="active"><span class="ic">📡</span><span data-t="home">الرئيسية</span></button>
     <button data-page="speed"><span class="ic">⚡</span><span data-t="speedTest">السرعة</span></button>
+    <button data-page="towers"><span class="ic">🗼</span><span data-t="towers">الأبراج</span></button>
     <button data-page="reach"><span class="ic">🎮</span><span data-t="reach">الوصول</span></button>
     <button data-page="place"><span class="ic">🧭</span><span data-t="placement">أفضل موقع</span></button>
     <button data-page="opt"><span class="ic">✨</span><span data-t="optimizer">المُحسِّن</span></button>
